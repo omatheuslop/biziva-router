@@ -10,7 +10,7 @@ Suporta texto, imagens, áudio, transcrição, embeddings, vídeo, arquivos e t�
 
 ## Comece aqui
 
-[**Baixar Windows x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-windows-x64-setup.exe) · [**Mac Apple Silicon**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-macos-arm64.dmg) · [**Linux x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-linux-x64.tar.gz)
+[**Baixar Windows x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.4.0/BizivaRouter-windows-x64-setup.exe) · [**Mac Apple Silicon**](https://github.com/omatheuslop/biziva-router/releases/download/v0.4.0/BizivaRouter-macos-arm64.dmg) · [**Linux x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.4.0/BizivaRouter-linux-x64.tar.gz)
 
 [Guia do primeiro uso e ajuda](start-here.md) · [Demonstração interativa sem API](demo.html) · [Exemplos práticos](recipes.md)
 

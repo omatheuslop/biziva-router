@@ -11,6 +11,9 @@ export class Store{
   CREATE TABLE IF NOT EXISTS exact_cache(owner TEXT NOT NULL,key TEXT NOT NULL,response TEXT NOT NULL,expires INTEGER NOT NULL,PRIMARY KEY(owner,key));
   CREATE TABLE IF NOT EXISTS resources(owner TEXT NOT NULL,provider TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(owner,provider,id));
   CREATE TABLE IF NOT EXISTS integration_tokens(owner TEXT PRIMARY KEY,token_hash TEXT UNIQUE NOT NULL);
+  CREATE TABLE IF NOT EXISTS recovery(owner TEXT PRIMARY KEY,token_hash TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS conversations(owner TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,data TEXT NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(owner,id));
+  CREATE TABLE IF NOT EXISTS receipts(owner TEXT NOT NULL,idem TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(owner,idem));
   CREATE TABLE IF NOT EXISTS passwords(owner TEXT PRIMARY KEY,salt TEXT NOT NULL,hash TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,owner TEXT NOT NULL,expires INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS router_settings(owner TEXT PRIMARY KEY,revision INTEGER NOT NULL,data TEXT NOT NULL);
@@ -44,9 +47,7 @@ export class Store{
  }
  passwordLogin(owner,password){
   if(typeof owner!=='string'||typeof password!=='string'||password.length>256)return null;
-  const row=this.db.prepare('SELECT salt,hash FROM passwords WHERE owner=?').get(owner);
-  const got=scryptSync(password,row?.salt||'synthetic-constant-for-missing-account',32);
-  if(!row||!timingSafeEqual(got,Buffer.from(row.hash,'hex')))return null;
+  if(!this.verifyPassword(owner,password))return null;
   const token='bzs_'+randomBytes(32).toString('hex');this.db.prepare('DELETE FROM sessions WHERE expires<=?').run(Date.now());this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(hash(token),owner,Date.now()+12*3600000);return token;
  }
  logout(token){this.db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash(token))}
@@ -57,5 +58,22 @@ export class Store{
   }catch(e){this.db.exec('ROLLBACK');throw e}
  }
  clientCount(){return this.db.prepare('SELECT COUNT(*) n FROM clients').get().n}
+ verifyPassword(owner,password){if(typeof owner!=='string'||typeof password!=='string'||password.length>256)return false;const row=this.db.prepare('SELECT salt,hash FROM passwords WHERE owner=?').get(owner),got=scryptSync(password,row?.salt||'synthetic-constant-for-missing-account',32);return !!row&&timingSafeEqual(got,Buffer.from(row.hash,'hex'))}
+ revokeAccess(owner){this.db.prepare('DELETE FROM sessions WHERE owner=?').run(owner);this.db.prepare('DELETE FROM integration_tokens WHERE owner=?').run(owner);this.db.prepare('UPDATE clients SET token_hash=? WHERE id=?').run(hash(randomBytes(32)),owner)}
+ recoveryCode(owner){const code='bzrc_'+randomBytes(32).toString('hex');this.db.prepare('INSERT INTO recovery VALUES(?,?) ON CONFLICT(owner) DO UPDATE SET token_hash=excluded.token_hash').run(owner,hash(code));return code}
+ recover(owner,code,password){const row=this.db.prepare('SELECT token_hash FROM recovery WHERE owner=?').get(owner);if(typeof code!=='string'||!row||!timingSafeEqual(Buffer.from(hash(code)),Buffer.from(row.token_hash)))return false;this.db.exec('BEGIN IMMEDIATE');try{this.setPassword(owner,password);this.revokeAccess(owner);this.db.prepare('DELETE FROM recovery WHERE owner=?').run(owner);this.db.exec('COMMIT');return true}catch(e){this.db.exec('ROLLBACK');throw e}}
+ changePassword(owner,password){this.db.exec('BEGIN IMMEDIATE');try{this.setPassword(owner,password);this.revokeAccess(owner);this.db.exec('COMMIT')}catch(e){this.db.exec('ROLLBACK');throw e}}
+ conversations(owner){return this.db.prepare('SELECT id,revision,data,updated_at FROM conversations WHERE owner=? ORDER BY updated_at DESC LIMIT 50').all(owner).map(r=>({...r,data:this.open(owner,'conversation:'+r.id,r.data)}))}
+ saveConversation(owner,id,value,revision){const all=this.conversations(owner),old=all.find(x=>x.id===id);if((old?.revision||0)!==revision)throw Object.assign(Error('A conversa mudou em outra janela.'),{status:409,code:'conversation_conflict'});if(!old&&all.length>=50)throw Object.assign(Error('Limite de 50 conversas locais. Exporte ou remova uma conversa.'),{status:409,code:'conversation_limit'});this.db.prepare('INSERT INTO conversations VALUES(?,?,?,?,?) ON CONFLICT(owner,id) DO UPDATE SET revision=excluded.revision,data=excluded.data,updated_at=excluded.updated_at').run(owner,id,revision+1,this.seal(owner,'conversation:'+id,value),Date.now());return revision+1}
+ track(owner,idem,data){this.db.prepare('INSERT INTO receipts VALUES(?,?,?) ON CONFLICT(owner,idem) DO UPDATE SET data=excluded.data').run(owner,idem,this.seal(owner,'receipt:'+idem,data))}
+ receipt(owner,idem){const r=this.db.prepare('SELECT data FROM receipts WHERE owner=? AND idem=?').get(owner,idem);return r?this.open(owner,'receipt:'+idem,r.data):null}
+ operations(owner){return this.db.prepare('SELECT idem,state,created_at,response IS NOT NULL AS resultAvailable FROM operations WHERE owner=? ORDER BY created_at DESC LIMIT 100').all(owner).map(r=>({...r,receipt:this.receipt(owner,r.idem)}))}
+ operation(owner,idem){const r=this.db.prepare('SELECT * FROM operations WHERE owner=? AND idem=?').get(owner,idem);return r?{...r,response:r.response?this.open(owner,'operation:'+idem,r.response):null,receipt:this.receipt(owner,idem)}:null}
+ backup(owner){const sizes=this.db.prepare('SELECT (SELECT COUNT(*) FROM operations WHERE owner=?) AS n,(SELECT COALESCE(SUM(LENGTH(response)),0) FROM operations WHERE owner=?)+(SELECT COALESCE(SUM(LENGTH(data)),0) FROM conversations WHERE owner=?)+(SELECT COALESCE(SUM(LENGTH(data)),0) FROM receipts WHERE owner=?) AS bytes,(SELECT COUNT(*) FROM resources WHERE owner=?) AS resources').get(owner,owner,owner,owner,owner);if(sizes.n>2000||sizes.bytes>10000000||sizes.resources>10000)throw Object.assign(Error('Dados excedem o limite do backup pelo painel.'),{status:413});const ops=this.db.prepare('SELECT * FROM operations WHERE owner=?').all(owner);if(ops.length>2000)throw Object.assign(Error('O histórico excede o limite deste backup pelo painel.'),{status:413});return {owner,settings:this.settings(owner),keys:this.providers(owner).map(provider=>({provider,key:this.getKey(owner,provider)})),conversations:this.conversations(owner).map(r=>({id:r.id,value:r.data})),operations:ops.map(r=>({...r,response:r.response?this.open(owner,'operation:'+r.idem,r.response):null,receipt:this.receipt(owner,r.idem)})),resources:this.db.prepare('SELECT provider,id FROM resources WHERE owner=?').all(owner)}}
+ restore(owner,value){this.db.exec('BEGIN IMMEDIATE');try{const result={keysAdded:0,keysKept:0,conversationsAdded:0};for(const x of value.operations){const old=this.db.prepare('SELECT fingerprint FROM operations WHERE owner=? AND idem=?').get(owner,x.idem);if(old&&old.fingerprint!==x.fingerprint)throw Error('Conflicting operation');if(!old){this.db.prepare('INSERT INTO operations VALUES(?,?,?,?,?,?)').run(owner,x.idem,x.fingerprint,x.state==='running'?'uncertain':x.state,x.response?this.seal(owner,'operation:'+x.idem,x.response):null,x.created_at);if(x.receipt)this.track(owner,x.idem,x.receipt)}}
+ for(const x of value.keys){if(this.getKey(owner,x.provider)){result.keysKept++;continue}this.putKey(owner,x.provider,x.key);result.keysAdded++}
+ if(value.settings&&!(this.settings(owner)?.routes.length)){const old=this.settings(owner);this.db.prepare('INSERT INTO router_settings VALUES(?,?,?) ON CONFLICT(owner) DO UPDATE SET revision=excluded.revision,data=excluded.data').run(owner,(old?.revision||0)+1,JSON.stringify(value.settings))}
+ for(const x of value.resources)this.remember(owner,x.provider,x.id);
+ for(const x of value.conversations){if(this.db.prepare('SELECT 1 FROM conversations WHERE owner=? AND id=?').get(owner,x.id))continue;if(this.conversations(owner).length>=50)break;this.saveConversation(owner,x.id,x.value,0);result.conversationsAdded++}this.db.exec('COMMIT');return result}catch(e){this.db.exec('ROLLBACK');throw Object.assign(Error('Backup incompatível; nada foi importado.'),{status:409,code:'backup_conflict'})}}
  close(){this.db.close()}
 }

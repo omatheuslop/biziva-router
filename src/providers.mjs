@@ -1,5 +1,5 @@
 import {RouterError} from './core.mjs';
-export const PROVIDERS={biziva:{origin:'https://api.biziva.com.br',prefix:'/v1',auth:'bearer'},openai:{origin:'https://api.openai.com',prefix:'/v1',auth:'bearer'},anthropic:{origin:'https://api.anthropic.com',prefix:'/v1',auth:'anthropic'},openrouter:{origin:'https://openrouter.ai',prefix:'/api/v1',auth:'bearer'},gemini:{origin:'https://generativelanguage.googleapis.com',prefix:'/v1beta',auth:'google'}};
+export const PROVIDERS=Object.freeze(Object.assign(Object.create(null),{biziva:{origin:'https://api.biziva.com.br',prefix:'/v1',auth:'bearer'},openai:{origin:'https://api.openai.com',prefix:'/v1',auth:'bearer'},anthropic:{origin:'https://api.anthropic.com',prefix:'/v1',auth:'anthropic'},openrouter:{origin:'https://openrouter.ai',prefix:'/api/v1',auth:'bearer'},gemini:{origin:'https://generativelanguage.googleapis.com',prefix:'/v1beta',auth:'google'}}));
 export function endpoint(provider,path,method){
  const cfg=PROVIDERS[provider];if(!cfg)throw new RouterError(400,'unknown_provider','Unknown provider');
  if(['GET','DELETE'].includes(method)&&/^\/v1\/(responses|files|videos)\/[a-zA-Z0-9_-]+(?:\/(content|input_items))?$/.test(path)&&provider==='openai')return cfg.origin+path;

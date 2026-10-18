@@ -1,3 +1,4 @@
+import {makeManagement} from './management.mjs';
 import {fetchCatalog,AGENTS} from './catalog.mjs';
 import {makeWorkbench,profileHeaders} from './workbench.mjs';
 import {randomUUID,timingSafeEqual} from 'node:crypto';
@@ -11,14 +12,15 @@ export async function boundedBytes(stream,max){
  try{while(true){const r=await reader.read();if(r.done)break;bytes+=r.value.byteLength;if(bytes>max){await reader.cancel();throw new RouterError(413,'body_too_large','Request/response exceeds configured buffering limit')}chunks.push(r.value)}}finally{reader.releaseLock()}
  return Buffer.concat(chunks);
 }
-export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes=32*1024*1024,maxCacheBytes=1024*1024,timeoutMs=300000,maxConcurrent=4,bootstrap=null,catalogSend=fetch}){
+export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes=32*1024*1024,maxCacheBytes=1024*1024,timeoutMs=300000,maxConcurrent=4,bootstrap=null,catalogSend=fetch,metadataSend=fetch,onQuit=null,isRealtimeBusy=()=>false}){
  if(typeof adminToken!=='string'||adminToken.length<32)throw Error('Admin token must contain at least 32 characters');
- const concurrency=new Map();let loginWindow=0,loginCount=0,catalogCache=null,catalogLoading=null;
+ let draining=false;const concurrency=new Map();let loginWindow=0,loginCount=0,catalogCache=null,catalogLoading=null;
+ const management=makeManagement({store,metadataSend,onQuit,onDrain:()=>{draining=true},busy:()=>[...concurrency.values()].some(n=>n>0)||isRealtimeBusy()});
  const workbench=makeWorkbench({store,catalog,dispatch:request=>handle(request)});
  const handle=async function(request){
   try{return await run(request)}catch(e){return json({error:{type:'biziva_router_error',code:e.code||'internal_error',message:e instanceof RouterError||e.code==='settings_conflict'?e.message:'Internal gateway error'}},e.status||500)}
  };
- return handle;
+ handle.isDraining=()=>draining;return handle;
  async function run(request){
   const url=new URL(request.url),path=url.pathname;
   if(path==='/healthz'&&request.method==='GET')return json({status:'ok',version:VERSION});
@@ -27,6 +29,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    requireOrigin(request,url);if(Date.now()-loginWindow>60000){loginWindow=Date.now();loginCount=0}if(++loginCount>10)throw new RouterError(429,'login_rate_limit','Aguarde um minuto antes de tentar novamente.');
    const b=parseJSON(await boundedBytes(request.body,4096)),session=store.passwordLogin(b.id,b.password);if(!session)throw new RouterError(401,'unauthorized','Nome ou senha não reconhecidos.');return json({token:session,expiresInSeconds:43200});
   }
+  if(path==='/router/recover'&&request.method==='POST'){requireOrigin(request,url);return json(await management.recover(request,async max=>parseJSON(await boundedBytes(request.body,max))))}
   if(path==='/router/setup'){
    const available=bootstrap&&!bootstrap.used&&bootstrap.expires>Date.now()&&store.clientCount()===0;
    if(request.method==='GET')return json({available:!!available});
@@ -46,6 +49,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   }
   const owner=store.authenticate(token);if(!owner)throw new RouterError(401,'unauthorized','Authentication required');
   if(!['GET','HEAD'].includes(request.method))requireOrigin(request,url);
+  const managed=await management.handle(request,owner,token,async max=>parseJSON(await boundedBytes(request.body,max)));if(managed!==undefined)return json(managed);
   if(path==='/router/integration-token'&&request.method==='POST')return json({token:store.integrationToken(owner),warning:'Código novo. O código de integração anterior deixou de funcionar.'});
   if(path==='/router/agents'&&request.method==='GET')return json({agents:AGENTS});
   if(path==='/router/catalog'&&request.method==='GET'){
@@ -64,6 +68,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    store.putKey(owner,provider,b.key);return json({provider,configured:true});
   }
   if(path==='/router/context/select'&&request.method==='POST')return json(selectContext(parseJSON(await boundedBytes(request.body,maxBodyBytes))));
+  if(draining)throw new RouterError(503,'router_closing','O Router está encerrando. Nenhum pedido foi enviado.');
   const provider=request.headers.get('x-biziva-provider')||(path==='/v1/messages'||path==='/v1/messages/count_tokens'?'anthropic':path.startsWith('/v1beta/')?'gemini':'openai');
   const upstreamUrl=endpoint(provider,path,request.method)+queryString(provider,url.searchParams),key=store.getKey(owner,provider);
   if(!key)throw new RouterError(409,'provider_key_missing','Register your own provider key first');
@@ -77,7 +82,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   const release=()=>{if(!released){released=true;concurrency.set(owner,Math.max(0,(concurrency.get(owner)||1)-1))}};
   try{return await dispatch()}catch(e){release();throw e}
   async function dispatch(){
-  const original=await boundedBytes(request.body,maxBodyBytes);const expected=request.headers.get('x-biziva-settings-revision');if(expected!=null&&String(workbench.settings(owner).revision)!==expected)throw new RouterError(409,'settings_conflict','A configuração mudou. Simule novamente antes de enviar.');let body=null,bytes=original,optimization=null,route={provider,model:null,switched:false};
+  const original=await boundedBytes(request.body,maxBodyBytes);if(draining)throw new RouterError(503,'router_closing','O Router está encerrando.');if(store.authenticate(token)!==owner)throw new RouterError(401,'unauthorized','A sessão foi encerrada.');if(store.getKey(owner,provider)!==key)throw new RouterError(409,'key_changed','A chave mudou antes do envio. Nenhum pedido foi enviado.');const expected=request.headers.get('x-biziva-settings-revision');if(expected!=null&&String(workbench.settings(owner).revision)!==expected)throw new RouterError(409,'settings_conflict','A configuração mudou. Simule novamente antes de enviar.');let body=null,bytes=original,optimization=null,route={provider,model:null,switched:false};
   const contentType=request.headers.get('content-type')||'';
   if(original.length&&contentType.includes('application/json')){
    try{body=JSON.parse(original.toString())}catch{throw new RouterError(400,'invalid_json','Invalid JSON body')}
@@ -85,8 +90,8 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    if(body.previous_response_id&&!store.owns(owner,provider,body.previous_response_id))throw new RouterError(404,'resource_not_found','Previous response not found in this account');
    if(body.conversation)throw new RouterError(422,'conversation_not_supported','Use stateless input or a gateway-owned previous_response_id');
    if(body.model!=null&&(typeof body.model!=='string'||body.model.length>200||/[\r\n]/.test(body.model)))throw new RouterError(400,'invalid_model','Invalid model identifier');
-   route=chooseRoute({path,body,provider,allowSwitch:request.headers.get('x-biziva-allow-model-switch')==='1',task:request.headers.get('x-biziva-task')||'general',catalog:workbench.freshRoutes(owner)});
-   if(route.switched)body.model=route.model;
+   route=chooseRoute({path,body,provider,allowSwitch:request.headers.get('x-biziva-allow-model-switch')==='1',task:request.headers.get('x-biziva-task')||'general',catalog:workbench.freshRoutes(owner).filter(r=>(r.priceCurrency||'USD')===(request.headers.get('x-biziva-price-currency')||'USD'))});
+   if(route.switched)body.model=route.model;if(route.estimatedUsd!=null){route.estimatedAmount=route.estimatedUsd;route.currency=request.headers.get('x-biziva-price-currency')||'USD';if(route.currency!=='USD')delete route.estimatedUsd;}
    optimization=optimize(body,{deduplicateInstructions:request.headers.get('x-biziva-deduplicate-instructions')==='1'});body=optimization.body;bytes=Buffer.from(JSON.stringify(body));
   }
   // Fingerprint every forwarded semantic header, including future Anthropic features.
@@ -107,6 +112,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   try{
    const timeout=AbortSignal.timeout(timeoutMs),signal=AbortSignal.any([timeout,request.signal]);
    // One dispatch only: no blind retries or cross-provider failover after a paid submission.
+   const receipt={provider,path,model:route.model,credential:hash(key),upstreamId:provider==='biziva'?'bzrouter-'+requestId:null};if(idem)store.track(owner,idem,receipt);
    const forwarded=upstreamHeaders(provider,key,request.headers);if(provider==='biziva')forwarded.set('idempotency-key','bzrouter-'+requestId);
    const upstream=await send(upstreamUrl,{method:request.method,headers:forwarded,body:bytes.length?bytes:undefined,redirect:'error',signal});
    const headers=new Headers();for(const n of ['content-type','retry-after','request-id','x-request-id','anthropic-ratelimit-requests-remaining','anthropic-ratelimit-tokens-remaining','x-should-retry','retry-after-ms','x-stainless-request-id','anthropic-ratelimit-unified-status','anthropic-ratelimit-unified-reset','anthropic-ratelimit-unified-representative-claim','anthropic-ratelimit-unified-fallback-percentage']){const v=upstream.headers.get(n);if(v)headers.set(n,v)}
@@ -124,6 +130,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
     const data=await boundedBytes(upstream.body,maxBodyBytes),saved=data.length<=maxCacheBytes?{status:upstream.status,headers:Object.fromEntries(headers),body:data.toString('base64')}:null;
     let decoded;try{decoded=JSON.parse(data.toString())}catch{}
     if(upstream.ok){if(decoded?.id)store.remember(owner,provider,decoded.id);if(typeof decoded?.name==='string'&&/^(?:models\/[a-zA-Z0-9._-]+\/)?operations\/[a-zA-Z0-9._-]+$/.test(decoded.name))store.remember(owner,provider,decoded.name)}
+    if(idem&&upstream.ok&&typeof decoded?.id==='string'){receipt.resourceId=decoded.id;receipt.resourceType=path==='/v1/videos'?'videos':path==='/v1/responses'?'responses':null;store.track(owner,idem,receipt)}
     const state=upstream.status>=500?'uncertain':upstream.ok?'completed':'rejected';
     if(idem)store.finish(owner,idem,state,saved);
     if(cache&&upstream.ok&&saved&&(decoded?.choices?.length>0&&decoded.choices.every(x=>x.finish_reason==='stop'&&x.message?.content&&!x.message?.tool_calls)||path==='/v1/embeddings'&&Array.isArray(decoded?.data)))store.cachePut(owner,cacheKey,saved,300);

@@ -10,9 +10,9 @@
 
 ### Download and try
 
-[**Windows x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-windows-x64-setup.exe) · [**Mac Apple Silicon**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-macos-arm64.dmg) · [**Linux x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-linux-x64.tar.gz)
+[**Windows x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.4.0/BizivaRouter-windows-x64-setup.exe) · [**Mac Apple Silicon**](https://github.com/omatheuslop/biziva-router/releases/download/v0.4.0/BizivaRouter-macos-arm64.dmg) · [**Linux x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.4.0/BizivaRouter-linux-x64.tar.gz)
 
-[Release notes & checksums](https://github.com/omatheuslop/biziva-router/releases/tag/v0.3.1) · [First-use guide](docs/start-here.md) · [Português 🇧🇷](docs/README.pt-BR.md) · [Codex & Claude setup](docs/developers.md)
+[Release notes & checksums](https://github.com/omatheuslop/biziva-router/releases/tag/v0.4.0) · [First-use guide](docs/start-here.md) · [Português 🇧🇷](docs/README.pt-BR.md) · [Codex & Claude setup](docs/developers.md)
 
 **See the journey before adding a key:** [open the interactive demo file](docs/demo.html), download it with GitHub’s **Download raw file** button and open it in your browser. It uses fictional data, works offline and makes no API calls. It is a walkthrough, not the live product.
 
@@ -30,7 +30,7 @@ Desktop packages are a **public preview**. Windows is not publisher-signed; macO
 
 Created and maintained by [Matheus Lopes](https://github.com/omatheuslop) at [Biziva](https://biziva.com.br). Free, Apache-2.0 software. Self-hosted, with **zero runtime npm dependencies**.
 
-**Release status: 0.3.1 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
+**Release status: 0.4.0 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
 
 ## What you gain
 
@@ -119,3 +119,5 @@ npm run check
 Tests use synthetic credentials, isolated SQLite, mock providers and local-only transports. They never generate billable content. Report a bug with a minimal **redacted** reproduction; never include API keys or private conversations. See [CONTRIBUTING](CONTRIBUTING.md).
 
 Apache-2.0. Provider terms and model access remain your responsibility; a ChatGPT or Claude subscription is not automatically an API credential.
+
+[New in 0.4: local recovery, encrypted backups, conversations, request tracking and simpler media controls](docs/upgrade-0.4.md).
