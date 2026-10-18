@@ -34,3 +34,20 @@ test('future forwarded Claude headers distinguish idempotent requests',async()=>
 });
 test('encrypted vault, cross-owner AAD and restart uncertainty',()=>{const dir=mkdtempSync(join(tmpdir(),'bzr-')),path=join(dir,'test.db');try{let s=new Store(path,master);s.createClient('a');s.putKey('a','openai','synthetic-sensitive-value');s.claim('a','pending','fp');s.close();assert.equal(readFileSync(path).includes(Buffer.from('synthetic-sensitive-value')),false);s=new Store(path,master);assert.equal(s.getKey('a','openai'),'synthetic-sensitive-value');assert.equal(s.claim('a','pending','fp').state,'uncertain');assert.throws(()=>s.open('b','openai',s.db.prepare('SELECT cipher FROM vault').get().cipher));s.close()}finally{rmSync(dir,{recursive:true,force:true})}});
 test('admission is acquired before buffering a slow body and released after replay',async()=>{const store=new Store(':memory:',master),token=store.createClient('slow');store.putKey('slow','openai','synthetic-provider-slow');let controller;const stream=new ReadableStream({start(c){controller=c}}),handle=makeGateway({store,adminToken:admin,maxConcurrent:1,send:async()=>answer()});try{const slow=handle(new Request('http://localhost/v1/chat/completions',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:stream,duplex:'half'}));const denied=await handle(req(token));assert.equal(denied.status,429);controller.enqueue(new TextEncoder().encode(JSON.stringify({model:'exact',messages:[{role:'user',content:'hi'}]})));controller.close();assert.equal((await slow).status,200);assert.equal((await handle(req(token))).status,200)}finally{store.close()}});
+test('Biziva own keys use fixed origin, preserve payload, isolate accounts and never repeat a dispatch',async()=>{
+ const seen=[];const f=fixture(async(url,options)=>{seen.push({url,headers:options.headers,body:JSON.parse(options.body)});return answer()});
+ try{
+  f.store.putKey('a','biziva','synthetic-biziva-key-a');f.store.putKey('b','biziva','synthetic-biziva-key-b');
+  const headers={'x-biziva-provider':'biziva','idempotency-key':'biziva-first','x-biziva-profile':'fixed'};
+  const body={model:'my-exact-model',messages:[{role:'user',content:'Synthetic prompt'}],max_tokens:128};
+  assert.equal((await f.handle(req(f.a,undefined,body,headers))).status,200);
+  assert.equal(seen[0].url,'https://api.biziva.com.br/v1/chat/completions');assert.deepEqual(seen[0].body,body);
+  assert.equal(seen[0].headers.get('authorization'),'Bearer synthetic-biziva-key-a');assert.equal(seen[0].headers.get('x-biziva-cache'),'off');assert.equal(seen[0].headers.get('x-biziva-deduplicate-instructions'),'0');assert.match(seen[0].headers.get('idempotency-key'),/^bzrouter-[a-f0-9-]+$/);
+  assert.equal((await f.handle(req(f.a,undefined,body,headers))).headers.get('x-biziva-replay'),'1');assert.equal(seen.length,1);
+  assert.equal((await f.handle(req(f.b,undefined,body,headers))).status,200);assert.equal(seen[1].headers.get('authorization'),'Bearer synthetic-biziva-key-b');assert.notEqual(seen[1].headers.get('idempotency-key'),seen[0].headers.get('idempotency-key'));
+  assert.equal((await f.handle(req(f.a,'/v1/files',body,headers))).status,404);assert.equal(seen.length,2);
+  assert.equal((await f.handle(req(f.a,'/v1/chat/completions?url=https://example.invalid',body,headers))).status,400);assert.equal(seen.length,2);
+  const providers=await(await f.handle(req(f.a,'/router/providers',null,{},'GET'))).text();assert.match(providers,/biziva/);assert.doesNotMatch(providers,/synthetic-biziva-key/);
+  for(const path of ['/v1/images/generations','/v1/audio/speech','/v1/embeddings'])assert.equal((await f.handle(req(f.a,path,{model:'exact',input:'fixture',prompt:'fixture'},{'x-biziva-provider':'biziva'}))).status,200);
+ }finally{f.store.close()}
+});
