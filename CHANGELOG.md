@@ -1,3 +1,9 @@
+# 0.4.1
+
+- Enable the existing Biziva video API in the Router adapter, with owner-scoped status and download.
+- Add manual video tracking and MP4 download to chat/playground; preserve 0.4 guided controls, security and recovery.
+- Correct documentation: Biziva already generated video; Router 0.3.1/0.4.0 omitted its video adapter.
+
 # Changelog
 
 ## 0.4.0 — 2026-10-18 (public preview)
