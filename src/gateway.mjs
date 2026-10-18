@@ -107,7 +107,8 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   try{
    const timeout=AbortSignal.timeout(timeoutMs),signal=AbortSignal.any([timeout,request.signal]);
    // One dispatch only: no blind retries or cross-provider failover after a paid submission.
-   const upstream=await send(upstreamUrl,{method:request.method,headers:upstreamHeaders(provider,key,request.headers),body:bytes.length?bytes:undefined,redirect:'error',signal});
+   const forwarded=upstreamHeaders(provider,key,request.headers);if(provider==='biziva')forwarded.set('idempotency-key','bzrouter-'+requestId);
+   const upstream=await send(upstreamUrl,{method:request.method,headers:forwarded,body:bytes.length?bytes:undefined,redirect:'error',signal});
    const headers=new Headers();for(const n of ['content-type','retry-after','request-id','x-request-id','anthropic-ratelimit-requests-remaining','anthropic-ratelimit-tokens-remaining','x-should-retry','retry-after-ms','x-stainless-request-id','anthropic-ratelimit-unified-status','anthropic-ratelimit-unified-reset','anthropic-ratelimit-unified-representative-claim','anthropic-ratelimit-unified-fallback-percentage']){const v=upstream.headers.get(n);if(v)headers.set(n,v)}
    if(provider==='anthropic')for(const [name,value] of upstream.headers)if(name.startsWith('anthropic-ratelimit-'))headers.set(name,value);
    if(upstream.status>=500)headers.set('x-should-retry','false');
