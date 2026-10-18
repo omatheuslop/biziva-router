@@ -4,7 +4,7 @@
 
 [English](../README.md) · [Baixar versões](https://github.com/omatheuslop/biziva-router/releases) · [Codex e Claude](developers.md)
 
-**Código aberto para quem desenvolve com IA e quer controlar as próprias chaves, modelos e gastos.** Conecte suas chaves de OpenAI, Anthropic, Gemini e OpenRouter a um gateway instalado por você, com painel e protocolos nativos.
+**Código aberto para quem desenvolve com IA e quer controlar as próprias chaves, modelos e gastos.** Conecte suas chaves de Biziva, OpenAI, Anthropic, Gemini e OpenRouter a um gateway instalado por você, com painel e protocolos nativos.
 
 Suporta texto, imagens, áudio, transcrição, embeddings, vídeo, arquivos e túnel Realtime OpenAI, conforme o modelo e a disponibilidade do provedor. Inclui Responses HTTP/SSE para integrações com Codex e Messages nativo para Claude. Não converte qualquer modelo em substituto equivalente de outro.
 
@@ -59,7 +59,7 @@ O catálogo automático começa vazio e recusa pedidos sem rota aprovada. O arqu
 
 ## Estado da versão
 
-**0.3.0, prévia pública para instalação própria.** Há testes de protocolo, isolamento e falhas com provedores sintéticos e CI público. Ainda não há validação paga de cada modelo/versão do Codex/Claude, auditoria independente ou percentual medido de economia real. Não há cadastro BYOK hospedado incluído.
+**0.3.1, prévia pública para instalação própria.** Há testes de protocolo, isolamento e falhas com provedores sintéticos e CI público. Ainda não há validação paga de cada modelo/versão do Codex/Claude, auditoria independente ou percentual medido de economia real. Não há cadastro BYOK hospedado incluído.
 
 Encontrou um problema? [Abra uma issue](https://github.com/omatheuslop/biziva-router/issues/new) com passos de reprodução e dados fictícios. Nunca publique chaves, prompts privados ou conversas de clientes. Para segurança, consulte [SECURITY](../SECURITY.md). Melhorias e contribuições: [CONTRIBUTING](../CONTRIBUTING.md).
 
