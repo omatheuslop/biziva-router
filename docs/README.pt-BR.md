@@ -32,9 +32,9 @@ npm start
 ```
 
 1. Abra http://127.0.0.1:8787.
-2. Abra o arquivo `.env` localmente e leia `ROUTER_ADMIN_TOKEN`. Não compartilhe esse arquivo.
-3. Em **Administration/Administração**, crie sua conta e guarde o token exibido uma única vez.
-4. Conecte a conta com esse token e cadastre sua chave de API do provedor.
+2. No quadro **Primeira vez aqui?**, siga os três passos. Abra o arquivo `.env` da pasta do Router com um editor de texto. Encontre `ROUTER_ADMIN_TOKEN=` e copie somente o código depois de `=`. Não altere nem compartilhe esse arquivo.
+3. Cole em **Código de instalação**, escolha um nome curto sem espaços, como `meu-acesso`, e clique em **Criar meu acesso e entrar**.
+4. Guarde o **código pessoal** exibido como uma senha. Você já estará conectado; escolha o serviço de IA e cadastre a chave de API que ele forneceu. Quando voltar ao painel, use seu código pessoal para entrar. Não é necessário criar outro acesso.
 5. Aponte seu aplicativo para o gateway usando o token da conta. Siga o [primeiro pedido](quickstart.md), os [exemplos de API](api.md) ou o [guia Codex/Claude](developers.md).
 
 O comando `setup` cria `.env` uma vez e não substitui arquivos existentes. Preserve o arquivo, a chave mestra e o banco entre reinicializações; perder a chave mestra impede recuperar os dados criptografados. O servidor inicia apenas na máquina local. Para acesso externo, configure HTTPS e siga [operações](operations.md).
@@ -49,6 +49,6 @@ O catálogo automático começa vazio e recusa pedidos sem rota aprovada. O arqu
 
 ## Estado da versão
 
-**0.1.1, prévia pública para instalação própria.** Há testes de protocolo, isolamento e falhas com provedores sintéticos e CI público. Ainda não há validação paga de cada modelo/versão do Codex/Claude, auditoria independente ou percentual medido de economia real. Não há cadastro BYOK hospedado incluído.
+**0.1.2, prévia pública para instalação própria.** Há testes de protocolo, isolamento e falhas com provedores sintéticos e CI público. Ainda não há validação paga de cada modelo/versão do Codex/Claude, auditoria independente ou percentual medido de economia real. Não há cadastro BYOK hospedado incluído.
 
 Encontrou um problema? [Abra uma issue](https://github.com/omatheuslop/biziva-router/issues/new) com passos de reprodução e dados fictícios. Nunca publique chaves, prompts privados ou conversas de clientes. Para segurança, consulte [SECURITY](../SECURITY.md). Melhorias e contribuições: [CONTRIBUTING](../CONTRIBUTING.md).

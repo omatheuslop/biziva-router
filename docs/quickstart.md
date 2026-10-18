@@ -8,7 +8,7 @@ Install Node.js 24+, clone this repository, then run `npm ci`, `npm run setup` a
 
 ## 2. Create your gateway account
 
-Read `ROUTER_ADMIN_TOKEN` in your local `.env`. In **Administration**, enter it and create a short account identifier. Save the generated gateway token securely: it is shown only once. Connect using that gateway token, then choose a provider and save your own API key. Neither token belongs in a GitHub issue or screenshot.
+Use the **Primeira vez aqui?** panel and its three guided steps. Open the local `.env` file with a text editor, find `ROUTER_ADMIN_TOKEN=` and copy only the value after `=` into **Código de instalação**. Choose a short name without spaces and click **Criar meu acesso e entrar**. Save the **código pessoal** shown once: this is your gateway token. The dashboard connects automatically; choose your provider and save your own API key. On later visits, enter using the personal code. Do not create a new account or regenerate `.env`. Neither code belongs in an issue or screenshot.
 
 Provider keys and gateway tokens are different: your application uses the gateway token; the gateway uses the encrypted provider key. A provider subscription/API balance and model access are still required. No inference is made when you only register a key.
 
