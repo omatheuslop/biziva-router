@@ -32,6 +32,22 @@ A failed/uncertain operation is never silently redispatched under the same key, 
 
 Select **Biziva API** in **Minhas chaves**, paste your own Biziva API key and save. The key is encrypted like the other providers; no Biziva shared key is bundled. Create/manage it at https://api.biziva.com.br/console. Saving makes no paid inference.
 
-In **Rotas e economia**, choose **Biziva API**, register the model/task and current prices from your own Biziva account, and approve its quality. Then choose **Biziva API** in chat or the playground. Supported gateway paths are chat completions, embeddings, image generations and speech. No arbitrary upstream URL or provider administration is exposed. Do not import OpenRouter prices as Biziva prices; your Biziva contract, balance and model access apply. Preview remains a local estimate, not the final Biziva charge.
+In **Rotas e economia**, choose **Biziva API**, register the model/task and current prices from your own Biziva account, and approve its quality. Then choose **Biziva API** in chat or the playground. Supported gateway paths are chat completions, embeddings, image generations, speech and video creation/status/content. No arbitrary upstream URL or provider administration is exposed. Do not import OpenRouter prices as Biziva prices; your Biziva contract, balance and model access apply. Preview remains a local estimate, not the final Biziva charge.
 
 For SDK calls send `X-Biziva-Provider: biziva`. Optimization cache/dedup headers are forwarded to Biziva when explicitly selected. A unique upstream idempotency key is generated per dispatch; Router account isolation and no uncertain automatic retries remain in force.
+
+## Video with a Biziva key
+
+The hosted Biziva API already generates video. Router 0.4.1 enables that existing capability for the Biziva provider; 0.3.1 omitted it from the adapter.
+
+Create with `POST /v1/videos`, `X-Biziva-Provider: biziva`, your Router bearer token and a unique `Idempotency-Key`. Example body:
+
+```json
+{"model":"biziva-video","prompt":"An orange ball bounces on a blue studio floor, with audible impacts.","seconds":5,"resolution":"720p","audio":true}
+```
+
+A 202 response accepts the job; it does not mean the file is ready. Keep its `id`. Use authenticated `GET /v1/videos/ID` with the same provider header until `status` is `succeeded`, then `GET /v1/videos/ID/content` to download. The Router uses its own fixed paths and checks resource ownership; it does not follow returned status/content URLs. GET only reads or reconciles the original job, never submits a new generation. DELETE and unrelated Biziva endpoints remain disabled.
+
+In the dashboard, approve a Biziva video route using the model and current price from your own account. Select Video, enter the parameters above, preview and explicitly confirm paid creation. Use **Consultar andamento** and **Baixar vídeo** afterward. No background creation/retry occurs; a new intentional generation requires a new preview. After reloading, saved job ownership remains in the local database and the same ID can be queried through the API.
+
+Original contract: 5 seconds, 720p and required audio. Availability, tariffs and file retention depend on the current Biziva contract. This Router update was tested with synthetic providers, without spending customer credits.
