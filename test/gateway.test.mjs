@@ -51,3 +51,32 @@ test('Biziva own keys use fixed origin, preserve payload, isolate accounts and n
   for(const path of ['/v1/images/generations','/v1/audio/speech','/v1/embeddings'])assert.equal((await f.handle(req(f.a,path,{model:'exact',input:'fixture',prompt:'fixture'},{'x-biziva-provider':'biziva'}))).status,200);
  }finally{f.store.close()}
 });
+
+test('Biziva video create/status/download stays owner-scoped and replays creation once',async()=>{
+ let creates=0,reads=0;const binary=Buffer.from([0,0,0,20,102,116,121,112,1,255]);
+ const f=fixture(async(url,o)=>{
+  assert.equal(o.headers.get('authorization'),'Bearer synthetic-biziva-a');assert.equal(o.redirect,'error');
+  if(o.method==='POST'){creates++;assert.equal(url,'https://api.biziva.com.br/v1/videos');assert.match(o.headers.get('idempotency-key'),/^bzrouter-/);assert.deepEqual(JSON.parse(o.body),{model:'biziva-video',prompt:'synthetic ball',seconds:5,resolution:'720p',audio:true});return Response.json({id:'video_fixture_032',status:'submitted',status_url:'https://evil.invalid/ignored'},{status:202})}
+  reads++;assert.match(url,/^https:\/\/api.biziva.com.br\/v1\/videos\/video_fixture_032(?:\/content)?$/);
+  return url.endsWith('/content')?new Response(binary,{headers:{'content-type':'video/mp4'}}):Response.json({id:'video_fixture_032',status:'succeeded',result:{audio_verified:true,content_url:'https://evil.invalid/ignored'}});
+ });
+ try{f.store.putKey('a','biziva','synthetic-biziva-a');f.store.putKey('b','biziva','synthetic-biziva-b');
+  const body={model:'biziva-video',prompt:'synthetic ball',seconds:5,resolution:'720p',audio:true},h={'x-biziva-provider':'biziva','idempotency-key':'video-032','x-biziva-cache':'exact'};
+  assert.equal((await f.handle(req(f.a,'/v1/videos',body,h))).status,202);
+  const replay=await f.handle(req(f.a,'/v1/videos',body,h));assert.equal(replay.status,202);assert.equal(replay.headers.get('x-biziva-replay'),'1');assert.equal(creates,1);
+  for(const path of ['/v1/videos/video_fixture_032','/v1/videos/video_fixture_032/content'])assert.equal((await f.handle(req(f.b,path,null,{'x-biziva-provider':'biziva'},'GET'))).status,404);
+  assert.equal(reads,0);const status=await f.handle(req(f.a,'/v1/videos/video_fixture_032',null,{'x-biziva-provider':'biziva'},'GET'));assert.equal((await status.json()).status,'succeeded');
+  const content=await f.handle(req(f.a,'/v1/videos/video_fixture_032/content',null,{'x-biziva-provider':'biziva'},'GET'));assert.equal(content.headers.get('content-type'),'video/mp4');assert.deepEqual(Buffer.from(await content.arrayBuffer()),binary);assert.equal(creates,1);assert.equal(reads,2);
+  assert.equal((await f.handle(req(f.a,'/v1/videos',{...body,prompt:'changed'},h))).status,409);
+  for(const [path,method] of [['/v1/videos/video_fixture_032','DELETE'],['/v1/videos/video_fixture_032/other','GET'],['/v1/videos/video_fixture_032?url=https://evil.invalid','GET'],['/v1/videos/unknown_032','GET'],['/v1/tasks/video_fixture_032','GET']])assert.ok((await f.handle(req(f.a,path,null,{'x-biziva-provider':'biziva'},method))).status>=400);
+  assert.equal(creates,1);assert.equal(reads,2);
+ }finally{f.store.close()}
+});
+test('uncertain Biziva video creation never redispatches and does not grant resource ownership',async()=>{
+ let calls=0;const f=fixture(async()=>{calls++;throw Error('lost response')});
+ try{f.store.putKey('a','biziva','synthetic-biziva-a');const h={'x-biziva-provider':'biziva','idempotency-key':'video-uncertain'};
+  const request=()=>req(f.a,'/v1/videos',{model:'biziva-video',prompt:'fixture',audio:true},h);
+  assert.equal((await f.handle(request())).status,502);assert.equal((await f.handle(request())).status,409);
+  assert.equal((await f.handle(req(f.a,'/v1/videos/video_unknown',null,{'x-biziva-provider':'biziva'},'GET'))).status,404);assert.equal(calls,1);
+ }finally{f.store.close()}
+});
