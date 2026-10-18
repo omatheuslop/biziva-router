@@ -1,3 +1,9 @@
+# 0.3.2
+
+- Enable existing Biziva video generation in the Router adapter, including owner-scoped status and binary download.
+- Add manual video status/download controls to chat and playground; no paid automatic retry.
+- Correct documentation: the hosted Biziva API already supports video; the missing capability was in Router 0.3.1.
+
 # Changelog
 
 ## 0.3.1 — 2026-10-18 (public preview)

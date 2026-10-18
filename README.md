@@ -30,7 +30,7 @@ Desktop packages are a **public preview**. Windows is not publisher-signed; macO
 
 Created and maintained by [Matheus Lopes](https://github.com/omatheuslop) at [Biziva](https://biziva.com.br). Free, Apache-2.0 software. Self-hosted, with **zero runtime npm dependencies**.
 
-**Release status: 0.3.1 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
+**Release status: 0.3.2 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
 
 ## What you gain
 
