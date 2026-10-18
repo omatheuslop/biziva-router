@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-10-18 (public preview)
+
+- Add Biziva API to encrypted key management, chat, route editor and playground.
+- Fixed Biziva HTTPS origin and explicit endpoint allowlist; own-key authentication, optimization headers and unique upstream idempotency.
+- Document account-specific prices and balance; no bundled shared credentials.
+
 ## 0.3.0 — 2026-10-18 (public preview)
 
 - Biziva dashboard with chat, encrypted key management, approved routes, assistants, usage and integration sections.
