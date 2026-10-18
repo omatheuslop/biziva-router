@@ -1,0 +1,46 @@
+name: Desktop packages
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.20.0'
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run build:desktop
+      - run: npm run smoke:desktop
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis --yes --no-progress }
+          & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" scripts/windows-installer.nsi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Linux archive
+        if: runner.os == 'Linux'
+        run: tar -czf dist/BizivaRouter-linux-x64.tar.gz -C dist BizivaRouter
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: BizivaRouter-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/*.dmg
+            dist/*-setup.exe
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
