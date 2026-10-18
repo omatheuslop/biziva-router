@@ -1,3 +1,5 @@
+import {fetchCatalog,AGENTS} from './catalog.mjs';
+import {makeWorkbench,profileHeaders} from './workbench.mjs';
 import {randomUUID,timingSafeEqual} from 'node:crypto';
 import {RouterError,VERSION,stable,optimize,selectContext,cacheEligible,chooseRoute,usageOf} from './core.mjs';
 import {hash} from './store.mjs';
@@ -9,16 +11,33 @@ export async function boundedBytes(stream,max){
  try{while(true){const r=await reader.read();if(r.done)break;bytes+=r.value.byteLength;if(bytes>max){await reader.cancel();throw new RouterError(413,'body_too_large','Request/response exceeds configured buffering limit')}chunks.push(r.value)}}finally{reader.releaseLock()}
  return Buffer.concat(chunks);
 }
-export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes=32*1024*1024,maxCacheBytes=1024*1024,timeoutMs=300000,maxConcurrent=4}){
+export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes=32*1024*1024,maxCacheBytes=1024*1024,timeoutMs=300000,maxConcurrent=4,bootstrap=null,catalogSend=fetch}){
  if(typeof adminToken!=='string'||adminToken.length<32)throw Error('Admin token must contain at least 32 characters');
- const concurrency=new Map();
- return async function handle(request){
-  try{return await run(request)}catch(e){return json({error:{type:'biziva_router_error',code:e.code||'internal_error',message:e instanceof RouterError?e.message:'Internal gateway error'}},e.status||500)}
+ const concurrency=new Map();let loginWindow=0,loginCount=0,catalogCache=null,catalogLoading=null;
+ const workbench=makeWorkbench({store,catalog,dispatch:request=>handle(request)});
+ const handle=async function(request){
+  try{return await run(request)}catch(e){return json({error:{type:'biziva_router_error',code:e.code||'internal_error',message:e instanceof RouterError||e.code==='settings_conflict'?e.message:'Internal gateway error'}},e.status||500)}
  };
+ return handle;
  async function run(request){
   const url=new URL(request.url),path=url.pathname;
   if(path==='/healthz'&&request.method==='GET')return json({status:'ok',version:VERSION});
   const token=(request.headers.get('authorization')?.replace(/^Bearer /i,'')||request.headers.get('x-api-key')||'');
+  if(path==='/router/login'&&request.method==='POST'){
+   requireOrigin(request,url);if(Date.now()-loginWindow>60000){loginWindow=Date.now();loginCount=0}if(++loginCount>10)throw new RouterError(429,'login_rate_limit','Aguarde um minuto antes de tentar novamente.');
+   const b=parseJSON(await boundedBytes(request.body,4096)),session=store.passwordLogin(b.id,b.password);if(!session)throw new RouterError(401,'unauthorized','Nome ou senha não reconhecidos.');return json({token:session,expiresInSeconds:43200});
+  }
+  if(path==='/router/setup'){
+   const available=bootstrap&&!bootstrap.used&&bootstrap.expires>Date.now()&&store.clientCount()===0;
+   if(request.method==='GET')return json({available:!!available});
+   if(request.method!=='POST')throw new RouterError(405,'unsupported_method','Use POST.');
+   requireOrigin(request,url);
+   if(!available||!timingSafeEqual(Buffer.from(hash(token)),Buffer.from(hash(bootstrap.token))))throw new RouterError(401,'setup_unavailable','Use o link de primeiro acesso mostrado no terminal desta instalação.');
+   const b=parseJSON(await boundedBytes(request.body,4096));
+   if(!/^[a-zA-Z0-9_-]{1,80}$/.test(b.id||''))throw new RouterError(400,'invalid_client','Escolha um nome sem espaços.');
+   if(bootstrap.used||bootstrap.expires<=Date.now()||store.clientCount()!==0)throw new RouterError(409,'setup_used','O primeiro acesso já foi criado.');
+   if(b.password!=null&&(typeof b.password!=='string'||b.password.length<10||b.password.length>256))throw new RouterError(400,'invalid_password','Use uma senha com 10 a 256 caracteres.');let result;store.db.exec('BEGIN IMMEDIATE');try{result={id:b.id,token:store.createClient(b.id)};if(b.password)store.setPassword(b.id,b.password);store.db.exec('COMMIT')}catch(e){store.db.exec('ROLLBACK');throw e}bootstrap.used=true;return json(result,201);
+  }
   if(path==='/router/admin/clients'&&request.method==='POST'){
    const isAdmin=timingSafeEqual(Buffer.from(hash(token)),Buffer.from(hash(adminToken)));if(!isAdmin)throw new RouterError(401,'unauthorized','Authentication required');
    requireOrigin(request,url);const body=parseJSON(await boundedBytes(request.body,4096));
@@ -27,6 +46,14 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   }
   const owner=store.authenticate(token);if(!owner)throw new RouterError(401,'unauthorized','Authentication required');
   if(!['GET','HEAD'].includes(request.method))requireOrigin(request,url);
+  if(path==='/router/integration-token'&&request.method==='POST')return json({token:store.integrationToken(owner),warning:'Código novo. O código de integração anterior deixou de funcionar.'});
+  if(path==='/router/agents'&&request.method==='GET')return json({agents:AGENTS});
+  if(path==='/router/catalog'&&request.method==='GET'){
+   if(!catalogCache||Date.now()-catalogCache.time>3600000){if(!catalogLoading)catalogLoading=fetchCatalog(catalogSend).then(value=>{catalogCache={time:Date.now(),value};return value}).finally(()=>{catalogLoading=null});return json(await catalogLoading)}return json(catalogCache.value);
+  }
+  if(path==='/router/logout'&&request.method==='POST'){store.logout(token);return json({loggedOut:true})}
+  if(path==='/router/settings'||path.startsWith('/router/playground/')){const r=await workbench.handle(request,owner,token,async()=>parseJSON(await boundedBytes(request.body,65536)));if(r){r.headers.set('cache-control','no-store');r.headers.set('x-should-retry','false');return r}}
+  const selectedProfile=request.headers.get('x-biziva-profile');if(selectedProfile){const headers=new Headers(request.headers);const options=profileHeaders(selectedProfile,headers.get('x-biziva-allow-model-switch')==='1');for(const [k,v] of Object.entries(options))headers.set(k,v);request=new Request(request,{headers})}
   if(path==='/router/metrics'&&request.method==='GET')return json(store.metrics(owner));
   if(path==='/router/providers'&&request.method==='GET')return json({providers:store.providers(owner),supported:Object.keys(PROVIDERS)});
   if(path.startsWith('/router/providers/')){
@@ -50,7 +77,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   const release=()=>{if(!released){released=true;concurrency.set(owner,Math.max(0,(concurrency.get(owner)||1)-1))}};
   try{return await dispatch()}catch(e){release();throw e}
   async function dispatch(){
-  const original=await boundedBytes(request.body,maxBodyBytes);let body=null,bytes=original,optimization=null,route={provider,model:null,switched:false};
+  const original=await boundedBytes(request.body,maxBodyBytes);const expected=request.headers.get('x-biziva-settings-revision');if(expected!=null&&String(workbench.settings(owner).revision)!==expected)throw new RouterError(409,'settings_conflict','A configuração mudou. Simule novamente antes de enviar.');let body=null,bytes=original,optimization=null,route={provider,model:null,switched:false};
   const contentType=request.headers.get('content-type')||'';
   if(original.length&&contentType.includes('application/json')){
    try{body=JSON.parse(original.toString())}catch{throw new RouterError(400,'invalid_json','Invalid JSON body')}
@@ -58,7 +85,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    if(body.previous_response_id&&!store.owns(owner,provider,body.previous_response_id))throw new RouterError(404,'resource_not_found','Previous response not found in this account');
    if(body.conversation)throw new RouterError(422,'conversation_not_supported','Use stateless input or a gateway-owned previous_response_id');
    if(body.model!=null&&(typeof body.model!=='string'||body.model.length>200||/[\r\n]/.test(body.model)))throw new RouterError(400,'invalid_model','Invalid model identifier');
-   route=chooseRoute({path,body,provider,allowSwitch:request.headers.get('x-biziva-allow-model-switch')==='1',task:request.headers.get('x-biziva-task')||'general',catalog});
+   route=chooseRoute({path,body,provider,allowSwitch:request.headers.get('x-biziva-allow-model-switch')==='1',task:request.headers.get('x-biziva-task')||'general',catalog:workbench.freshRoutes(owner)});
    if(route.switched)body.model=route.model;
    optimization=optimize(body,{deduplicateInstructions:request.headers.get('x-biziva-deduplicate-instructions')==='1'});body=optimization.body;bytes=Buffer.from(JSON.stringify(body));
   }

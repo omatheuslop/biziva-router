@@ -10,9 +10,9 @@
 
 [Get started](#run-locally) · [Leia em português 🇧🇷](docs/README.pt-BR.md) · [Codex & Claude setup](docs/developers.md) · [Download releases](https://github.com/omatheuslop/biziva-router/releases) · [Report a bug](https://github.com/omatheuslop/biziva-router/issues/new)
 
-Built by [Biziva](https://biziva.com.br). Self-hosted, with **zero runtime npm dependencies**.
+Created and maintained by [Matheus Lopes](https://github.com/omatheuslop) at [Biziva](https://biziva.com.br). Free, Apache-2.0 software. Self-hosted, with **zero runtime npm dependencies**.
 
-**Release status: 0.1.1 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
+**Release status: 0.3.0 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
 
 ## What you gain
 
@@ -36,9 +36,17 @@ There is no Biziva software subscription for running this Apache-2.0 project. Yo
 - Images (generation/edits/variations), speech, transcription/translation, embeddings, asynchronous video submission/status/content, file upload/retrieval and native OpenAI realtime WebSocket tunneling.
 - Gemini native generate/stream/embedding and long-running prediction endpoints; operation retrieval is scoped to the creating gateway account. Availability depends on the provider model/API.
 - OpenRouter native OpenAI-format endpoints; a gateway route does not make an unsupported upstream feature available.
-- Web dashboard for encrypted BYOK credentials, account creation and request/cache/uncertainty metrics.
+- Guided first access, encrypted BYOK credentials, account-scoped route/price editor, three explicit economy profiles, a free preview/confirmed paid playground and request/cache/uncertainty metrics.
 - Explicit qualified routing, exact response cache, conservative context controls and durable idempotency.
 - **No runtime npm dependencies.** Node.js 24 or later, built-in SQLite and AES-256-GCM.
+
+## Desktop dashboard
+
+The desktop build bundles Node and opens a local Biziva dashboard with chat, encrypted provider keys, task-specific assistants, approved routes, cost previews and consumption. Create a local name/password, add your own key, approve a route and review each paid request. No terminal or Node installation is needed to run a packaged build.
+
+Download only the assets actually attached to [Releases](https://github.com/omatheuslop/biziva-router/releases). Desktop packages are public previews: macOS builds use an ad-hoc signature, not Apple notarization; Windows builds are not publisher-signed. CI builds Windows, macOS and Linux packages; availability is shown by the release assets. The app runs locally while open and requires an Internet connection to your provider.
+
+Six task assistants cover general help, writing, summaries, code, planning and analysis. They produce responses using your keys; they do not execute code, browse or take autonomous external actions. Text, images, voice and video forms depend on qualified provider routes. OpenRouter public model metadata can fill a route, but approval remains yours.
 
 ## Run locally
 
@@ -52,7 +60,9 @@ npm start
 
 Requires Node.js 24+. Setup creates a private `.env` **once** and preserves it on subsequent runs. `npm start` loads it automatically; existing environment variables take precedence. Keep this file and the database across restarts. Never regenerate the master key for an existing database.
 
-Open `http://127.0.0.1:8787`. Read `ROUTER_ADMIN_TOKEN` locally from `.env`. In **Administration**, enter that admin token and create an account. Copy its gateway token once, connect the account, then register your provider keys. Credentials are never read back through the API. The browser keeps the gateway token only in memory; the database encrypts provider keys and saved responses. Keep the master key in a secret manager and back it up securely; losing it makes encrypted data unrecoverable.
+On a new local installation, `npm start` shows a **private first-access link** in your interactive terminal. Open it, choose your account name and create a password. The wizard connects you automatically. Add your provider key, configure approved routes/prices in the dashboard, choose an economy profile, then simulate a request for free before explicitly confirming a paid test. **No configuration-file editing is needed for this journey.**
+
+The private link expires after ten minutes and can create only the first account; it is not shown in redirected/service output or remote/container installations. Return with your account name and password. Existing administered accounts can still use their personal codes. Keep your master key and database backed up securely. [Dashboard walkthrough and boundaries](docs/workspace.md).
 
 The server binds to loopback by default. For remote access, use HTTPS at a reverse proxy, set `ROUTER_PUBLIC_ORIGIN=https://your-host`, and configure `ROUTER_HOST` explicitly. See [operations](docs/operations.md). No hosted signup, billing or provider credits are bundled.
 

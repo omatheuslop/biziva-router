@@ -1,5 +1,5 @@
 // Framework-independent policies shared with the hosted integration. No credentials or network.
-export const VERSION='0.1.2';
+export const VERSION='0.3.0';
 export class RouterError extends Error{constructor(status,code,message){super(message);this.status=status;this.code=code}}
 export function stable(value){
  if(Array.isArray(value))return '['+value.map(stable).join(',')+']';
@@ -35,7 +35,7 @@ export function selectContext({query,items,maxBytes}){
  return {items:selected.map(({index,score,bytes,...item})=>item),excludedIds:ranked.filter(x=>!selected.includes(x)).map(x=>x.id),selectedBytes:maxBytes-budget,lossy:true,method:'explicit auxiliary documents, lexical relevance; original conversation untouched'};
 }
 export function cacheEligible(path,body){
- return ['/v1/chat/completions','/v1/embeddings'].includes(path)&&!body.stream&&!protectedRequest(body)&&!body.user&&!body.metadata;
+ return ['/v1/chat/completions','/v1/embeddings','/v1beta/models/MODEL:generateContent'].includes(path)&&!body.stream&&!protectedRequest(body)&&!body.user&&!body.metadata;
 }
 export function requirements(path,body){
  const req=new Set([path]);
@@ -51,8 +51,8 @@ export function chooseRoute({path,body,provider,allowSwitch=false,task,catalog=[
  // Do not move stateful developer sessions between models/providers.
  if(protectedRequest(body))throw new RouterError(422,'stateful_route_required','Use an explicit native model for stateful/tool requests');
  const required=requirements(path,body),bytes=new TextEncoder().encode(stable(body)).length;
- const tokenPath=['/v1/chat/completions','/v1/responses','/v1/messages','/v1/embeddings'].includes(path);
- const maxOutput=path==='/v1/embeddings'?0:body.max_tokens??body.max_completion_tokens??body.max_output_tokens;
+ const tokenPath=['/v1/chat/completions','/v1/responses','/v1/messages','/v1/embeddings','/v1beta/models/MODEL:generateContent'].includes(path);
+ const maxOutput=path==='/v1/embeddings'?0:body.max_tokens??body.max_completion_tokens??body.max_output_tokens??body.generationConfig?.maxOutputTokens;
  if(tokenPath&&(!Number.isSafeInteger(maxOutput)||maxOutput<0||maxOutput===0&&path!=='/v1/embeddings'))throw new RouterError(400,'output_budget_required','An explicit output limit is required for automatic token routing');
  const mediaParameters=['size','quality','seconds','duration','resolution','voice','response_format'];
  function estimate(x){

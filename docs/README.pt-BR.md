@@ -19,7 +19,13 @@ Suporta texto, imagens, áudio, transcrição, embeddings, vídeo, arquivos e t�
 
 Você continua pagando o consumo do provedor e a hospedagem escolhida. Rodar o Router não dá créditos gratuitos, acesso a modelos pagos nem desconto universal. A assinatura do ChatGPT/Claude não equivale a saldo de API.
 
-## Instalar
+## Abrir o aplicativo
+
+Baixe o pacote do seu sistema nos arquivos de uma [versão publicada](https://github.com/omatheuslop/biziva-router/releases). O executável inclui Node e abre o painel local da Biziva no navegador. Os pacotes são uma prévia: o Mac ainda não tem notarização Apple e o Windows não tem assinatura de editor. A disponibilidade de cada sistema depende dos arquivos anexados à versão.
+
+O menu oferece **Chat das suas IAs**, **Minhas chaves**, **Rotas e economia**, **Assistentes**, **Consumo** e **Acesso e integração**. Os seis assistentes respondem por função; não executam código nem ações externas. Use o catálogo público OpenRouter para preencher preços e depois aprove a qualidade por tarefa. Você usa suas próprias chaves e saldo.
+
+## Instalar pelo código-fonte
 
 Instale Node.js24 ou superior. No terminal:
 
@@ -31,11 +37,15 @@ npm run setup
 npm start
 ```
 
-1. Abra http://127.0.0.1:8787.
-2. No quadro **Primeira vez aqui?**, siga os três passos. Abra o arquivo `.env` da pasta do Router com um editor de texto. Encontre `ROUTER_ADMIN_TOKEN=` e copie somente o código depois de `=`. Não altere nem compartilhe esse arquivo.
-3. Cole em **Código de instalação**, escolha um nome curto sem espaços, como `meu-acesso`, e clique em **Criar meu acesso e entrar**.
-4. Guarde o **código pessoal** exibido como uma senha. Você já estará conectado; escolha o serviço de IA e cadastre a chave de API que ele forneceu. Quando voltar ao painel, use seu código pessoal para entrar. Não é necessário criar outro acesso.
-5. Aponte seu aplicativo para o gateway usando o token da conta. Siga o [primeiro pedido](quickstart.md), os [exemplos de API](api.md) ou o [guia Codex/Claude](developers.md).
+1. No terminal onde executou `npm start`, clique no **link privado de primeiro acesso**. Ele aparece apenas em uma instalação local nova e vale por dez minutos. Não compartilhe o link.
+2. Escolha um nome e uma senha de pelo menos 10 caracteres, repita a senha e clique em **Criar meu acesso e começar**. Você não precisa abrir o arquivo `.env`.
+3. Você já estará conectado. Quando voltar, entre com seu nome e senha. Em Acesso e integração, gere um código separado caso queira conectar outro aplicativo.
+4. Escolha o serviço de IA e adicione a chave de API fornecida pela sua conta nesse serviço.
+5. Em **Rotas e economia**, cadastre os modelos, preços e tarefas que você aprovou. É tudo pelo painel, sem editar arquivos. Preços precisam ser conferidos no seu provedor; mais barato não significa qualidade equivalente.
+6. Escolha **Modelo fixo**, **Reaproveitar com segurança** ou **Economia autorizada**. A troca de modelo precisa da sua autorização explícita.
+7. Escreva um pedido e clique em **Simular sem gastar**. Confira modelo e estimativa. Somente depois de marcar a autorização e clicar em **Confirmar e enviar uma vez** o pedido vai ao provedor e pode gerar custo.
+
+O atalho de primeiro acesso exige terminal interativo, servidor local e nenhuma conta criada. Em servidor/instalação compartilhada, peça ao administrador um código pessoal; o painel mantém o acesso avançado autenticado. A estimativa não é teto garantido da fatura. A jornada e os limites estão no [guia do espaço de trabalho](workspace.md). Gemini nativo, uploads, Realtime e sessões com ferramentas continuam pela API; o teste gráfico usa pedidos JSON sem streaming/estado nas opções oferecidas.
 
 O comando `setup` cria `.env` uma vez e não substitui arquivos existentes. Preserve o arquivo, a chave mestra e o banco entre reinicializações; perder a chave mestra impede recuperar os dados criptografados. O servidor inicia apenas na máquina local. Para acesso externo, configure HTTPS e siga [operações](operations.md).
 
@@ -49,6 +59,8 @@ O catálogo automático começa vazio e recusa pedidos sem rota aprovada. O arqu
 
 ## Estado da versão
 
-**0.1.2, prévia pública para instalação própria.** Há testes de protocolo, isolamento e falhas com provedores sintéticos e CI público. Ainda não há validação paga de cada modelo/versão do Codex/Claude, auditoria independente ou percentual medido de economia real. Não há cadastro BYOK hospedado incluído.
+**0.3.0, prévia pública para instalação própria.** Há testes de protocolo, isolamento e falhas com provedores sintéticos e CI público. Ainda não há validação paga de cada modelo/versão do Codex/Claude, auditoria independente ou percentual medido de economia real. Não há cadastro BYOK hospedado incluído.
 
 Encontrou um problema? [Abra uma issue](https://github.com/omatheuslop/biziva-router/issues/new) com passos de reprodução e dados fictícios. Nunca publique chaves, prompts privados ou conversas de clientes. Para segurança, consulte [SECURITY](../SECURITY.md). Melhorias e contribuições: [CONTRIBUTING](../CONTRIBUTING.md).
+
+Criado e mantido por [Matheus Lopes](https://github.com/omatheuslop), da [Biziva](https://biziva.com.br). Software gratuito e de código aberto; consumo dos provedores e hospedagem continuam separados.

@@ -1,6 +1,6 @@
 {
   "name": "@biziva/router",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -9,9 +9,16 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=.env src/server.mjs",
+    "start": "node --env-file-if-exists=.env src/server.mjs --onboard",
     "test": "node --test test/*.test.mjs",
     "check": "node --check src/server.mjs",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "desktop": "node src/server.mjs --desktop",
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "smoke:desktop": "node scripts/smoke-desktop.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6"
   }
 }

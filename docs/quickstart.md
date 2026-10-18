@@ -8,7 +8,9 @@ Install Node.js 24+, clone this repository, then run `npm ci`, `npm run setup` a
 
 ## 2. Create your gateway account
 
-Use the **Primeira vez aqui?** panel and its three guided steps. Open the local `.env` file with a text editor, find `ROUTER_ADMIN_TOKEN=` and copy only the value after `=` into **Código de instalação**. Choose a short name without spaces and click **Criar meu acesso e entrar**. Save the **código pessoal** shown once: this is your gateway token. The dashboard connects automatically; choose your provider and save your own API key. On later visits, enter using the personal code. Do not create a new account or regenerate `.env`. Neither code belongs in an issue or screenshot.
+On a fresh local install, click the private first-access link shown by `npm start` in an interactive terminal. Choose an account name and create a password. Generate a separate integration code in Acesso e integração when needed. The dashboard signs you in automatically. Add a provider key, then follow [the workspace guide](workspace.md) to configure approved models/prices, choose a profile, and preview before confirming a paid test. No `.env` editing is needed. Never share the private link, personal code or provider key.
+
+Return with your account name and password; older administered accounts can still use a personal code. On an administered/remote installation, ask the administrator to create your access through the existing authenticated administration flow. The first-account link is local, single-use and expires after ten minutes.
 
 Provider keys and gateway tokens are different: your application uses the gateway token; the gateway uses the encrypted provider key. A provider subscription/API balance and model access are still required. No inference is made when you only register a key.
 
