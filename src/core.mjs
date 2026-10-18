@@ -1,5 +1,5 @@
 // Framework-independent policies shared with the hosted integration. No credentials or network.
-export const VERSION='0.3.0';
+export const VERSION='0.3.1';
 export class RouterError extends Error{constructor(status,code,message){super(message);this.status=status;this.code=code}}
 export function stable(value){
  if(Array.isArray(value))return '['+value.map(stable).join(',')+']';
