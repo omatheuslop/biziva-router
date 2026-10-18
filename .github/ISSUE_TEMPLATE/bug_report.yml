@@ -1,0 +1,30 @@
+name: Bug report / Problema
+description: Report an installation or usage problem without secrets.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Use fictional data. Never include API keys, passwords, private links, tokens or customer conversations."
+  - type: input
+    id: version
+    attributes:
+      label: Router version and operating system / Versão e sistema
+      placeholder: "0.3.1, Windows x64"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Passos
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result / Esperado e ocorrido
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Redacted error text / Erro sem dados privados
