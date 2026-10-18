@@ -86,3 +86,16 @@ test('Gemini playground preserves native content and resolves only the reviewed 
   assert.equal((await req('/router/playground/run',{previewId:p.previewId,confirmPaid:true})).status,200);assert.equal(seen.url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-synthetic:generateContent');const {model,...native}=body;assert.deepEqual(seen.body,native);
  }finally{s.close()}
 });
+
+test('Biziva video route preview requires paid confirmation and only creates once',async()=>{
+ const f=fixture(async(url,o)=>{assert.equal(url,'https://api.biziva.com.br/v1/videos');assert.equal(o.headers.get('authorization'),'Bearer synthetic-biziva-key');return Response.json({id:'video_workbench_032',status:'submitted'},{status:202})});
+ try{f.store.putKey('a','biziva','synthetic-biziva-key');
+  const route={provider:'biziva',model:'biziva-video',task:'video',path:'/v1/videos',approved:true,qualityAccepted:true,priceCheckedAt:new Date().toISOString(),usdPerUnit:0.01,priceUnit:'request',maxInputBytes:100000,supportedParameters:['seconds','resolution','audio'],constraints:{seconds:[5],resolution:['720p']}};
+  assert.equal((await f.save([route])).status,200);
+  const input={provider:'biziva',path:'/v1/videos',profile:'fixed',task:'video',maxEstimatedUsd:1,body:{model:'biziva-video',prompt:'synthetic ball',seconds:5,resolution:'720p',audio:true}};
+  const p=await f.req(f.a,'/router/playground/preview',input);assert.equal(p.status,200);const {previewId}=await p.json();assert.equal(f.calls(),0);
+  assert.equal((await f.req(f.a,'/router/playground/run',{previewId,confirmPaid:false})).status,400);assert.equal(f.calls(),0);
+  assert.equal((await f.req(f.a,'/router/playground/run',{previewId,confirmPaid:true})).status,202);assert.equal(f.calls(),1);assert.deepEqual(f.seen(),input.body);
+  assert.equal((await f.req(f.a,'/router/playground/run',{previewId,confirmPaid:true})).status,409);assert.equal(f.calls(),1);
+ }finally{f.store.close()}
+});

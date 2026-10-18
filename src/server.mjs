@@ -21,7 +21,7 @@ export function createRouterServer({store,adminToken,catalog=[],publicOrigin,sen
    const origin=publicOrigin||'http://'+req.headers.host;const url=new URL(req.url,origin);
    if(!publicOrigin&&!/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(req.headers.host||'')){res.writeHead(421);res.end();return}
    if(req.method==='GET'&&url.pathname==='/router/desktop/probe'&&desktopProof){const nonce=url.searchParams.get('nonce');if(!/^[a-f0-9]{64}$/.test(nonce||'')){res.writeHead(400);res.end();return}res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({proof:probeProof(desktopProof,nonce)}));return}
-   if(req.method==='GET'&&['/','/app.js','/workbench.js','/chat.js','/controls.js','/style.css'].includes(url.pathname)){
+   if(req.method==='GET'&&['/','/app.js','/workbench.js','/chat.js','/controls.js','/video.js','/style.css'].includes(url.pathname)){
     const name=url.pathname==='/'?'index.html':url.pathname.slice(1);res.writeHead(200,{'content-type':name.endsWith('.html')?'text/html; charset=utf-8':name.endsWith('.js')?'text/javascript; charset=utf-8':'text/css; charset=utf-8','content-security-policy':"default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",'x-content-type-options':'nosniff','cache-control':'no-store','referrer-policy':'no-referrer'});res.end(isSea()?getAsset('web/'+name,'utf8'):readFileSync(new URL('../web/'+name,import.meta.url)));return;
    }
    const request=new Request(url,{method:req.method,headers:req.headers,body:['GET','HEAD'].includes(req.method)?undefined:Readable.toWeb(req),duplex:'half',signal:controller.signal});
