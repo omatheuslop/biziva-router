@@ -1,10 +1,11 @@
 // Native realtime tunnel: preserves model and frames. No compression, cache, retry or protocol conversion.
-export function attachRealtime(server,{store,connect,publicOrigin}){
+export function attachRealtime(server,{store,connect,publicOrigin,isDraining=()=>false}){
  const active=new Map(),sockets=new Set();
  server.on('upgrade',(req,socket,head)=>{
   sockets.add(socket);socket.once('close',()=>sockets.delete(socket));
   const reject=status=>{socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`)};
   try{
+   if(isDraining())return reject('503 Service Unavailable');
    if(!publicOrigin&&!/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(req.headers.host||''))return reject('421 Misdirected Request');
    const url=new URL(req.url,publicOrigin||'http://'+req.headers.host),origin=req.headers.origin;
    if(origin&&origin!==url.origin)return reject('403 Forbidden');
@@ -23,5 +24,5 @@ export function attachRealtime(server,{store,connect,publicOrigin}){
    upstream.on('response',res=>{res.resume();finish('rejected');reject('502 Bad Gateway')});upstream.on('error',()=>{finish('uncertain');socket.destroy()});socket.on('error',()=>{finish('uncertain');upstream.destroy();remote?.destroy()});socket.on('close',()=>{finish('closed_usage_unknown');upstream.destroy();remote?.destroy()});upstream.end();
   }catch{reject('500 Internal Server Error')}
  });
- return {async close(){await Promise.all([...sockets].map(s=>new Promise(resolve=>{s.once('close',resolve);s.destroy()})))}};
+ return {activeCount:()=>sockets.size,async close(){await Promise.all([...sockets].map(s=>new Promise(resolve=>{s.once('close',resolve);s.destroy()})))}};
 }

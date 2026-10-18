@@ -2,11 +2,11 @@ import {randomUUID} from 'node:crypto';
 import {RouterError,chooseRoute,protectedRequest} from './core.mjs';
 import {PROVIDERS,endpoint} from './providers.mjs';
 import {hash} from './store.mjs';
-export const PROFILES={
+export const PROFILES=Object.freeze(Object.assign(Object.create(null),{
  fixed:{label:'Modelo fixo',description:'Preserva seu modelo e pedido. Sem cache ou redução automática.',cache:false,dedup:false},
  reuse:{label:'Reaproveitar com segurança',description:'Modelo fixo; cache exato e remoção de instruções adjacentes idênticas em pedidos elegíveis.',cache:true,dedup:true},
  economy:{label:'Economia autorizada',description:'Menor custo estimado entre suas rotas aprovadas para a tarefa, no mesmo provedor. Pode mudar a qualidade; exige autorização por pedido.',cache:true,dedup:true,requiresSwitch:true}
-};
+}));
 const tokenPaths=['/v1/chat/completions','/v1/responses','/v1/messages','/v1/embeddings','/v1beta/models/MODEL:generateContent'];
 export const PLAY_PATHS=[...tokenPaths,'/v1/images/generations','/v1/audio/speech','/v1/videos'];
 const mediaKeys=['size','quality','seconds','duration','resolution','voice','response_format'];
@@ -15,13 +15,13 @@ export function validateRoutes(routes){
  if(!Array.isArray(routes)||routes.length>50)fail('Cadastre até 50 rotas.');
  const ids=new Set();return routes.map(row=>{
   if(!row||!PROVIDERS[row.provider]||typeof row.model!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9/._:-]{0,199}$/.test(row.model)||typeof row.task!=='string'||!/^[a-zA-Z0-9_-]{1,60}$/.test(row.task)||!PLAY_PATHS.includes(row.path))fail('Confira provedor, modelo, tarefa e tipo de pedido.');
-  endpoint(row.provider,row.path,'POST');
+  endpoint(row.provider,row.path,'POST');if(row.priceCurrency!=null&&!['USD','BRL'].includes(row.priceCurrency))fail('Escolha USD ou BRL.');
   const id=[row.provider,row.model,row.task,row.path].join(':');if(ids.has(id))fail('Esta rota já está cadastrada.');ids.add(id);
   if(typeof row.approved!=='boolean'||row.approved&&row.qualityAccepted!==true)fail('Aprovar uma rota exige confirmar sua qualidade para esta tarefa.');
   if(typeof row.priceCheckedAt!=='string'||!Number.isFinite(Date.parse(row.priceCheckedAt))||Date.parse(row.priceCheckedAt)>Date.now()+60000)fail('Informe uma data válida de conferência do preço.');
-  const result={provider:row.provider,model:row.model,task:row.task,path:row.path,approved:row.approved,qualityAccepted:row.qualityAccepted===true,priceCheckedAt:new Date(row.priceCheckedAt).toISOString(),capabilities:[row.path]};
+  const result={provider:row.provider,model:row.model,task:row.task,path:row.path,approved:row.approved,qualityAccepted:row.qualityAccepted===true,priceCheckedAt:new Date(row.priceCheckedAt).toISOString(),priceCurrency:row.priceCurrency||'USD',capabilities:[row.path]};
   if(tokenPaths.includes(row.path)){
-   for(const k of ['inputUsdPerMillion','outputUsdPerMillion']){if(typeof row[k]!=='number'||!Number.isFinite(row[k])||row[k]<0||row[k]>1000000)fail('Informe os preços em dólares por milhão de tokens.');result[k]=row[k]}
+   for(const k of ['inputUsdPerMillion','outputUsdPerMillion']){if(typeof row[k]!=='number'||!Number.isFinite(row[k])||row[k]<0||row[k]>1000000)fail('Informe os preços na moeda escolhida por milhão de tokens.');result[k]=row[k]}
    if(!Number.isSafeInteger(row.contextTokens)||row.contextTokens<1||row.contextTokens>10000000)fail('Informe a capacidade de contexto do modelo.');result.contextTokens=row.contextTokens;
   }else{
    if(typeof row.usdPerUnit!=='number'||!Number.isFinite(row.usdPerUnit)||row.usdPerUnit<0||row.usdPerUnit>100000||!['image','second','character','request'].includes(row.priceUnit))fail('Informe o preço por imagem, segundo, caractere ou pedido.');
@@ -51,16 +51,17 @@ export function makeWorkbench({store,catalog,dispatch}){
   const output=b.max_tokens??b.max_completion_tokens??b.max_output_tokens??b.generationConfig?.maxOutputTokens;if(tokenPaths.includes(input.path)&&input.path!=='/v1/embeddings'&&(!Number.isSafeInteger(output)||output<1||output>16384))throw new RouterError(400,'output_budget_required','O teste permite de 1 a 16.384 tokens de saída.');
   const profile=input.profile||settings(owner).profile,headers=profileHeaders(profile,input.allowSwitch);
   if(b.model==='biziva-auto'&&profile!=='economy')throw new RouterError(400,'consent_required','O modelo automático exige o perfil Economia autorizada.');
-  if(typeof input.maxEstimatedUsd!=='number'||!Number.isFinite(input.maxEstimatedUsd)||input.maxEstimatedUsd<=0||input.maxEstimatedUsd>100)throw new RouterError(400,'budget_required','Informe um limite de estimativa entre US$ 0 e US$ 100.');
+  const amount=input.maxEstimatedAmount??input.maxEstimatedUsd;
+  if(typeof amount!=='number'||!Number.isFinite(amount)||amount<=0||amount>100)throw new RouterError(400,'budget_required','Informe um limite de estimativa maior que zero e até 100 na moeda escolhida.');
   const key=store.getKey(owner,input.provider);if(!key)throw new RouterError(409,'provider_key_missing','Cadastre sua chave deste provedor primeiro.');
-  const routes=freshRoutes(owner),task=input.task||'general';
+  const currency=input.currency||'USD';if(currency!=='USD'&&input.maxEstimatedAmount==null)fail('Use maxEstimatedAmount e currency para orçamento em reais.');if(!['USD','BRL'].includes(currency))fail('Moeda inválida.');const routes=freshRoutes(owner).filter(r=>(r.priceCurrency||'USD')===currency),task=input.task||'general';
   const route=chooseRoute({path:input.path,body:b,provider:input.provider,allowSwitch:input.allowSwitch===true,task,catalog:routes});
   const model=route.model;
   // Also price exact-model tests against an approved route; no guessed model prices.
   const matches=routes.filter(r=>r.provider===input.provider&&r.model===model&&r.task===task&&r.path===input.path);
   const priced=chooseRoute({path:input.path,body:{...b,model:'biziva-auto'},provider:input.provider,allowSwitch:true,task,catalog:matches});
-  if(priced.estimatedUsd>input.maxEstimatedUsd)throw new RouterError(422,'estimated_budget_exceeded','A estimativa excede o limite informado. Nada foi enviado.');
-  return {provider:input.provider,path:input.path,body:structuredClone(b),profile,headers:{...headers,'x-biziva-task':task},model,estimatedUsd:priced.estimatedUsd,revision:settings(owner).revision,credential:hash(key),maxEstimatedUsd:input.maxEstimatedUsd,task,allowSwitch:input.allowSwitch===true};
+  if(priced.estimatedUsd>amount)throw new RouterError(422,'estimated_budget_exceeded','A estimativa excede o limite informado. Nada foi enviado.');
+  return {provider:input.provider,path:input.path,body:structuredClone(b),profile,headers:{...headers,'x-biziva-provider':input.provider,'x-biziva-task':task,'x-biziva-price-currency':currency},model,currency,estimatedUsd:priced.estimatedUsd,revision:settings(owner).revision,credential:hash(key),maxEstimatedAmount:amount,maxEstimatedUsd:amount,task,allowSwitch:input.allowSwitch===true};
  }
  return {settings,freshRoutes,async handle(request,owner,token,readJSON){
   const path=new URL(request.url).pathname,method=request.method;
@@ -75,7 +76,7 @@ export function makeWorkbench({store,catalog,dispatch}){
    for(const [id,p] of previews)if(p.expires<=Date.now())previews.delete(id);
    if([...previews.values()].filter(p=>p.owner===owner).length>=10||previews.size>=500)throw new RouterError(429,'preview_limit','Conclua os testes pendentes ou aguarde cinco minutos.');
    const q=quote(owner,await readJSON()),id=randomUUID();previews.set(id,{owner,expires:Date.now()+300000,quote:q});
-   return Response.json({previewId:id,expiresInSeconds:300,provider:q.provider,model:q.model,profile:q.profile,estimatedUsd:q.estimatedUsd,paidConfirmationRequired:true,warning:'Estimativa com preços informados por você, não teto da fatura. Podem existir custos adicionais do provedor. Nenhum pedido foi enviado.'});
+   return Response.json({previewId:id,expiresInSeconds:300,provider:q.provider,model:q.model,profile:q.profile,currency:q.currency,estimatedAmount:q.estimatedUsd,...(q.currency==='USD'?{estimatedUsd:q.estimatedUsd}:{}),paidConfirmationRequired:true,warning:'Estimativa com preços informados por você, não teto da fatura. Podem existir custos adicionais do provedor. Nenhum pedido foi enviado.'});
   }
   if(path==='/router/playground/run'&&method==='POST'){
    const b=await readJSON(),p=previews.get(b.previewId);
