@@ -62,7 +62,8 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    if(route.switched)body.model=route.model;
    optimization=optimize(body,{deduplicateInstructions:request.headers.get('x-biziva-deduplicate-instructions')==='1'});body=optimization.body;bytes=Buffer.from(JSON.stringify(body));
   }
-  const semanticHeaders=Object.fromEntries(['anthropic-version','anthropic-beta','anthropic-workspace-id','openai-beta'].map(n=>[n,request.headers.get(n)||'']));
+  // Fingerprint every forwarded semantic header, including future Anthropic features.
+  const semanticHeaders=Object.fromEntries([...upstreamHeaders(provider,key,request.headers)].filter(([name])=>!['authorization','x-api-key','x-goog-api-key'].includes(name)));
   const fingerprint=hash(stable({provider,path,query:url.search,method:request.method,body:body||original.toString('base64'),headers:semanticHeaders,credential:hash(key)}));
   const idem=request.headers.get('idempotency-key')||request.headers.get('x-idempotency-key');
   if(idem&&(idem.length>200||!/^[\x21-\x7e]+$/.test(idem)))throw new RouterError(400,'invalid_idempotency_key','Invalid idempotency key');
@@ -84,6 +85,13 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    if(provider==='anthropic')for(const [name,value] of upstream.headers)if(name.startsWith('anthropic-ratelimit-'))headers.set(name,value);
    if(upstream.status>=500)headers.set('x-should-retry','false');
    headers.set('cache-control','no-store');headers.set('x-biziva-request-id',requestId);headers.set('x-biziva-provider',provider);if(route.model)headers.set('x-biziva-model',route.model);if(optimization)headers.set('x-biziva-removed-instructions',String(optimization.metrics.removedInstructions));
+   // Fetch forbids a response body for these successful empty-response statuses.
+   if([204,205,304].includes(upstream.status)){
+    await upstream.body?.cancel();
+    const state=upstream.ok?'completed':'rejected',saved={status:upstream.status,headers:Object.fromEntries(headers),body:''};
+    if(idem)store.finish(owner,idem,state,saved);
+    store.event(owner,{...event,status:upstream.status,state,latencyMs:Date.now()-started,usage:null});release();return new Response(null,{status:upstream.status,headers});
+   }
    if(upstream.headers.get('content-type')?.includes('application/json')){
     const data=await boundedBytes(upstream.body,maxBodyBytes),saved=data.length<=maxCacheBytes?{status:upstream.status,headers:Object.fromEntries(headers),body:data.toString('base64')}:null;
     let decoded;try{decoded=JSON.parse(data.toString())}catch{}
@@ -107,5 +115,5 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   }
  }
 }
-function fromSaved(saved,extra){return new Response(Buffer.from(saved.body,'base64'),{status:saved.status,headers:{...saved.headers,...extra,'cache-control':'no-store'}})}
+function fromSaved(saved,extra){return new Response([204,205,304].includes(saved.status)?null:Buffer.from(saved.body,'base64'),{status:saved.status,headers:{...saved.headers,...extra,'cache-control':'no-store'}})}
 function requireOrigin(request,url){const origin=request.headers.get('origin');if(origin&&origin!==url.origin)throw new RouterError(403,'origin_rejected','Cross-origin mutation rejected')}
