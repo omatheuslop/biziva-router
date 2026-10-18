@@ -15,4 +15,4 @@ try{
  if(error.code!=='EEXIST')throw error;
  console.log('Existing .env preserved. No credentials were changed.');
 }
-console.log('Run npm start, then open http://127.0.0.1:8787. Read your admin token locally from .env; never paste it into a public issue.');
+console.log('Execute npm start em seu terminal e abra o link privado de primeiro acesso mostrado. Depois, siga o assistente no navegador. Em instalações de servidor, peça ao administrador para criar seu acesso.');
