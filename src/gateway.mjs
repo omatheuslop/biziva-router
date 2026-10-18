@@ -3,7 +3,7 @@ import {RouterError,VERSION,stable,optimize,selectContext,cacheEligible,chooseRo
 import {hash} from './store.mjs';
 import {PROVIDERS,endpoint,upstreamHeaders,queryString} from './providers.mjs';
 function parseJSON(bytes){try{return JSON.parse(bytes.toString())}catch{throw new RouterError(400,'invalid_json','Invalid JSON body')}}
-const json=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
+const json=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','x-should-retry':'false'}});
 export async function boundedBytes(stream,max){
  if(!stream)return Buffer.alloc(0);const reader=stream.getReader(),chunks=[];let bytes=0;
  try{while(true){const r=await reader.read();if(r.done)break;bytes+=r.value.byteLength;if(bytes>max){await reader.cancel();throw new RouterError(413,'body_too_large','Request/response exceeds configured buffering limit')}chunks.push(r.value)}}finally{reader.releaseLock()}
@@ -46,6 +46,10 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    if(!store.owns(owner,provider,id))throw new RouterError(404,'resource_not_found','Resource not found in this account');
   }
   if((concurrency.get(owner)||0)>=maxConcurrent)throw new RouterError(429,'concurrency_limit','Too many active requests');
+  concurrency.set(owner,(concurrency.get(owner)||0)+1);let released=false;
+  const release=()=>{if(!released){released=true;concurrency.set(owner,Math.max(0,(concurrency.get(owner)||1)-1))}};
+  try{return await dispatch()}catch(e){release();throw e}
+  async function dispatch(){
   const original=await boundedBytes(request.body,maxBodyBytes);let body=null,bytes=original,optimization=null,route={provider,model:null,switched:false};
   const contentType=request.headers.get('content-type')||'';
   if(original.length&&contentType.includes('application/json')){
@@ -66,12 +70,10 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
   let claim=null;
   if(idem){claim=store.claim(owner,idem,fingerprint);if(!claim.claimed){
    if(claim.fingerprint!==fingerprint)throw new RouterError(409,'idempotency_conflict','This key belongs to a different request');
-   if(claim.response)return fromSaved(claim.response,{'x-biziva-replay':'1'});
+   if(claim.response){release();return fromSaved(claim.response,{'x-biziva-replay':'1'})}
    throw new RouterError(409,claim.state==='uncertain'?'result_uncertain':'request_already_claimed','No new upstream request was sent; inspect the original operation');
   }}
-  if(cache){const hit=store.cacheGet(owner,cacheKey);if(hit){if(idem)store.finish(owner,idem,'completed',hit);store.event(owner,{cacheHit:true,upstreamCall:false,provider,path});return fromSaved(hit,{'x-biziva-cache':'hit'})}}
-  concurrency.set(owner,(concurrency.get(owner)||0)+1);let released=false;
-  const release=()=>{if(!released){released=true;concurrency.set(owner,Math.max(0,(concurrency.get(owner)||1)-1))}};
+  if(cache){const hit=store.cacheGet(owner,cacheKey);if(hit){if(idem)store.finish(owner,idem,'completed',hit);store.event(owner,{cacheHit:true,upstreamCall:false,provider,path});release();return fromSaved(hit,{'x-biziva-cache':'hit'})}}
   const started=Date.now(),requestId=randomUUID();
   const event={requestId,provider,path,model:route.model,upstreamCall:true,route,optimization:optimization?.metrics};
   try{
@@ -80,6 +82,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    const upstream=await send(upstreamUrl,{method:request.method,headers:upstreamHeaders(provider,key,request.headers),body:bytes.length?bytes:undefined,redirect:'error',signal});
    const headers=new Headers();for(const n of ['content-type','retry-after','request-id','x-request-id','anthropic-ratelimit-requests-remaining','anthropic-ratelimit-tokens-remaining','x-should-retry','retry-after-ms','x-stainless-request-id','anthropic-ratelimit-unified-status','anthropic-ratelimit-unified-reset','anthropic-ratelimit-unified-representative-claim','anthropic-ratelimit-unified-fallback-percentage']){const v=upstream.headers.get(n);if(v)headers.set(n,v)}
    if(provider==='anthropic')for(const [name,value] of upstream.headers)if(name.startsWith('anthropic-ratelimit-'))headers.set(name,value);
+   if(upstream.status>=500)headers.set('x-should-retry','false');
    headers.set('cache-control','no-store');headers.set('x-biziva-request-id',requestId);headers.set('x-biziva-provider',provider);if(route.model)headers.set('x-biziva-model',route.model);if(optimization)headers.set('x-biziva-removed-instructions',String(optimization.metrics.removedInstructions));
    if(upstream.headers.get('content-type')?.includes('application/json')){
     const data=await boundedBytes(upstream.body,maxBodyBytes),saved=data.length<=maxCacheBytes?{status:upstream.status,headers:Object.fromEntries(headers),body:data.toString('base64')}:null;
@@ -101,6 +104,7 @@ export function makeGateway({store,adminToken,catalog=[],send=fetch,maxBodyBytes
    }catch(e){finish('uncertain');controller.error(e)}},async cancel(){try{await reader?.cancel()}finally{finish('uncertain')}}});
    return new Response(stream,{status:upstream.status,headers});
   }catch(e){if(idem)store.finish(owner,idem,'uncertain',null);store.event(owner,{...event,state:'uncertain',latencyMs:Date.now()-started});release();throw new RouterError(502,'result_uncertain','Upstream result is uncertain. Do not resend automatically. Reconcile with the provider.');}
+  }
  }
 }
 function fromSaved(saved,extra){return new Response(Buffer.from(saved.body,'base64'),{status:saved.status,headers:{...saved.headers,...extra,'cache-control':'no-store'}})}
