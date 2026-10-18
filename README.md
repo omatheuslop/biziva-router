@@ -1,10 +1,33 @@
-# Biziva Router ↗
+# Biziva Router — Your AI keys. One gateway. Less waste.
 
-**Your keys. Native protocols. Less waste.**
+![Biziva Router: your keys, one gateway, less waste](assets/hero.svg)
 
-A self-hosted, multimodal BYOK gateway by [Biziva](https://biziva.com.br). Connect your own provider accounts, keep developer tools on their native protocols, and make cost controls explicit.
+[![Router checks](https://github.com/omatheuslop/biziva-router/actions/workflows/test.yml/badge.svg)](https://github.com/omatheuslop/biziva-router/actions/workflows/test.yml)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-74e7c2)](https://nodejs.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-74e7c2)](LICENSE)
 
-**Release status: 0.1.0 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
+**An open-source AI gateway for developers who want control over their keys, models and spend.** Bring your own OpenAI, Anthropic, Gemini or OpenRouter API keys. Connect Codex and Claude workflows, generate images/audio/video, and reduce avoidable calls with explicit controls.
+
+[Get started](#run-locally) · [Leia em português 🇧🇷](docs/README.pt-BR.md) · [Codex & Claude setup](docs/developers.md) · [Download releases](https://github.com/omatheuslop/biziva-router/releases) · [Report a bug](https://github.com/omatheuslop/biziva-router/issues/new)
+
+Built by [Biziva](https://biziva.com.br). Self-hosted, with **zero runtime npm dependencies**.
+
+**Release status: 0.1.1 — public preview.** Protocols and failure handling are exercised with synthetic providers. This is not a claim of provider certification, universal savings, identical model quality, or production validation of every model.
+
+## What you gain
+
+| Need | What the router gives you |
+| --- | --- |
+| Connect multiple AI providers | One local gateway with native OpenAI, Claude and Gemini protocols. |
+| Keep provider secrets out of apps | An encrypted server-side key vault and separate gateway tokens per account. |
+| Stop paying for accidental repeats | Durable idempotency, explicit exact cache and no blind paid retries. |
+| Choose a cheaper model deliberately | Task-specific routing across your approved, compatible catalog, with consent. |
+| Send less irrelevant material | Opt-in exact instruction deduplication and selection of optional documents. |
+| Understand what happened | Request, cache and uncertainty metrics; reported costs are separated from unknown costs. |
+
+**Where savings come from:** ten eligible identical requests with exact cache enabled can make one upstream call while that cached result is valid. This is an illustration, not a measured benchmark. Ten different generations still require ten generations. Changing only the base URL in a Codex/Claude session does not automatically compress its history or make its model cheaper.
+
+There is no Biziva software subscription for running this Apache-2.0 project. You pay your providers and any hosting you choose. You manage deployment, backups and model qualification. A ChatGPT/Claude subscription does not automatically provide API credits.
 
 ## What ships
 
@@ -23,13 +46,13 @@ A self-hosted, multimodal BYOK gateway by [Biziva](https://biziva.com.br). Conne
 git clone https://github.com/omatheuslop/biziva-router.git
 cd biziva-router
 npm ci
-# Generate independent secrets on your own machine; keep them out of Git/logs.
-export ROUTER_MASTER_KEY="$(openssl rand -hex 32)"
-export ROUTER_ADMIN_TOKEN="$(openssl rand -hex 32)"
+npm run setup
 npm start
 ```
 
-Open `http://127.0.0.1:8787`. In **Administration**, enter the admin token and create an account. Copy its gateway token once, connect the account, then register your provider keys. Credentials are never read back through the API. The browser keeps the gateway token only in memory; the database encrypts provider keys and saved responses. Keep the master key in a secret manager and back it up securely; losing it makes encrypted data unrecoverable.
+Requires Node.js 24+. Setup creates a private `.env` **once** and preserves it on subsequent runs. `npm start` loads it automatically; existing environment variables take precedence. Keep this file and the database across restarts. Never regenerate the master key for an existing database.
+
+Open `http://127.0.0.1:8787`. Read `ROUTER_ADMIN_TOKEN` locally from `.env`. In **Administration**, enter that admin token and create an account. Copy its gateway token once, connect the account, then register your provider keys. Credentials are never read back through the API. The browser keeps the gateway token only in memory; the database encrypts provider keys and saved responses. Keep the master key in a secret manager and back it up securely; losing it makes encrypted data unrecoverable.
 
 The server binds to loopback by default. For remote access, use HTTPS at a reverse proxy, set `ROUTER_PUBLIC_ORIGIN=https://your-host`, and configure `ROUTER_HOST` explicitly. See [operations](docs/operations.md). No hosted signup, billing or provider credits are bundled.
 
@@ -53,6 +76,10 @@ The metrics distinguish known provider cost, unknown cost, cache hits and actual
 The operator controls the installation and can access its secrets. Prompts/outputs must reach the selected provider. Exact cache and JSON idempotency replay store encrypted output locally; metadata includes provider/model/path, usage and timing, never full prompts or provider keys. Metadata retains up to 30 days; idempotency/resource tombstones are retained to prevent unsafe reuse. See [security](SECURITY.md).
 
 This project contains a new standalone gateway and conservative policy helpers. **It does not contain Biziva production source, client data, provider keys, internal prompts or billing rules.** The internal Biziva deployment has separate authentication, qualified model registry, accounting and media validation.
+
+## First useful request
+
+Follow [the first request guide](docs/quickstart.md) to create a gateway account, register a provider key and send an explicit-model request. Start with the model you already use; enable savings controls only where they fit the task. The guide explains the expected response, common errors and how to verify a cache hit without confusing historical usage with new spend.
 
 ## Verify and contribute
 

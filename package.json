@@ -1,10 +1,17 @@
 {
   "name": "@biziva/router",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
   "description": "BYOK multimodal gateway with native developer protocols and explicit cost controls",
-  "engines": {"node": ">=24.0.0"},
-  "scripts": {"start": "node src/server.mjs", "test": "node --test test/*.test.mjs", "check": "node --check src/server.mjs"}
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/server.mjs",
+    "setup": "node scripts/setup.mjs"
+  }
 }
