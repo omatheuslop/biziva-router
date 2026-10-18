@@ -41,3 +41,5 @@ Media requests use the provider's body and supported model. Multipart file field
 Request headers: `X-Biziva-Provider`, `X-Biziva-Cache: exact`, `X-Biziva-Deduplicate-Instructions: 1`, `X-Biziva-Allow-Model-Switch: 1`, `X-Biziva-Task`, `Idempotency-Key`. Upstream authentication headers are created by the gateway; user-supplied vendor keys/URLs are never forwarded.
 
 A repeated idempotency key with a different body/credential conflicts. A complete JSON response up to 1 MiB can replay. Streaming/binary completion, interrupted streams and unknown dispatch outcomes do not redispatch. Inspect the provider's request/session/job status when a result is uncertain. Use a **new** key only for an intentional new operation after reconciliation.
+
+Gateway-generated errors and upstream5xx carry `x-should-retry:false` to discourage unsafe SDK retries. This cannot control clients that ignore the header. Configure client retries off and use an idempotency key for paid operations. Other native error bodies remain unmodified.
