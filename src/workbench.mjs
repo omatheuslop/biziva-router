@@ -84,7 +84,7 @@ export function makeWorkbench({store,catalog,dispatch}){
    const q=p.quote,current=quote(owner,{...q,profile:q.profile,maxEstimatedUsd:q.maxEstimatedUsd});
    if(q.revision!==current.revision||q.credential!==current.credential||q.model!==current.model||q.estimatedUsd!==current.estimatedUsd)throw new RouterError(409,'preview_stale','A configuração ou chave mudou. Simule novamente antes de confirmar.');
    previews.delete(b.previewId); // Consume before any async dispatch; no retry, including uncertain results.
-   const body={...q.body,model:q.model};let target=q.path;if(q.provider==='gemini'){target=q.path.replace('/MODEL:', '/'+q.model+':');delete body.model;endpoint(q.provider,target,'POST')}return dispatch(new Request(new URL(target,request.url),{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json',...q.headers,'x-biziva-settings-revision':String(q.revision),'idempotency-key':'playground-'+b.previewId},body:JSON.stringify(body),signal:request.signal}));
+   const body={...q.body,model:q.model};let target=q.path;if(q.provider==='gemini'){target=q.path.replace('/MODEL:', '/'+q.model+':');delete body.model;endpoint(q.provider,target,'POST')}return dispatch(new Request(new URL(target,request.url),{method:'POST',headers:{authorization:'Bearer '+token,'x-biziva-provider':q.provider,'content-type':'application/json',...q.headers,'x-biziva-settings-revision':String(q.revision),'idempotency-key':'playground-'+b.previewId},body:JSON.stringify(body),signal:request.signal}));
   }
   if(path.startsWith('/router/playground/'))throw new RouterError(405,'unsupported_method','Use POST para simular ou executar.');
   return null;

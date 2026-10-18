@@ -3,9 +3,10 @@ export const PROVIDERS={biziva:{origin:'https://api.biziva.com.br',prefix:'/v1',
 export function endpoint(provider,path,method){
  const cfg=PROVIDERS[provider];if(!cfg)throw new RouterError(400,'unknown_provider','Unknown provider');
  if(['GET','DELETE'].includes(method)&&/^\/v1\/(responses|files|videos)\/[a-zA-Z0-9_-]+(?:\/(content|input_items))?$/.test(path)&&provider==='openai')return cfg.origin+path;
+ if(method==='GET'&&provider==='biziva'&&/^\/v1\/videos\/[a-zA-Z0-9_-]{8,100}(?:\/content)?$/.test(path))return cfg.origin+path;
  if(method==='GET'&&provider==='gemini'&&/^\/v1beta\/(?:models\/[a-zA-Z0-9._-]+\/)?operations\/[a-zA-Z0-9._-]+$/.test(path))return cfg.origin+path;
  if(method!=='POST')throw new RouterError(405,'unsupported_method','Only explicit inference POST endpoints are exposed');
- if(provider==='biziva'){if(!['/v1/chat/completions','/v1/embeddings','/v1/images/generations','/v1/audio/speech'].includes(path))throw new RouterError(404,'unsupported_endpoint','Endpoint não habilitado para a integração Biziva.');return cfg.origin+path;}
+ if(provider==='biziva'){if(!['/v1/chat/completions','/v1/embeddings','/v1/images/generations','/v1/audio/speech','/v1/videos'].includes(path))throw new RouterError(404,'unsupported_endpoint','Endpoint não habilitado para a integração Biziva.');return cfg.origin+path;}
  const native=provider==='gemini';
  const allowed=native?/^\/v1beta\/models\/[a-zA-Z0-9._-]+:(generateContent|streamGenerateContent|embedContent|batchEmbedContents|predictLongRunning)$/.test(path):provider==='anthropic'?['/v1/messages','/v1/messages/count_tokens'].includes(path):['/v1/chat/completions','/v1/responses','/v1/responses/compact','/v1/embeddings','/v1/images/generations','/v1/images/edits','/v1/images/variations','/v1/audio/speech','/v1/audio/transcriptions','/v1/audio/translations','/v1/videos','/v1/files'].includes(path);
  if(!allowed)throw new RouterError(404,'unsupported_endpoint','Endpoint is not enabled for this provider');
