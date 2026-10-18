@@ -1,0 +1,12 @@
+[
+  {
+    "provider": "openai",
+    "model": "REPLACE_WITH_QUALIFIED_MODEL_ID",
+    "task": "general",
+    "approved": false,
+    "capabilities": ["/v1/chat/completions"],
+    "contextTokens": 0,
+    "inputUsdPerMillion": null,
+    "outputUsdPerMillion": null
+  }
+]
