@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-10-18 (public preview)
+
+- Fix playground dispatch using the wrong default provider; pin selected provider and validate credentials again before submission.
+- Lock local startup before opening SQLite, reopen only a verified live instance, and add authenticated graceful quit with active-request protection.
+- Provider-compatible UI, simple media fields, editable routes and price-expiry warnings.
+- Authenticated Biziva model/price checks with explicit BRL/USD budgets and no currency conversion or automatic approval.
+- Password rotation, single-use local recovery codes, encrypted account backups with merge-safe restoration, opt-in encrypted conversations and read-only request reconciliation.
+- Harden provider/profile lookup, session-switch UI isolation and restore boundaries.
+
 ## 0.3.1 — 2026-10-18 (public preview)
 
 - Add Biziva API to encrypted key management, chat, route editor and playground.
