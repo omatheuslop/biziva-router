@@ -8,6 +8,14 @@
 
 Suporta texto, imagens, áudio, transcrição, embeddings, vídeo, arquivos e túnel Realtime OpenAI, conforme o modelo e a disponibilidade do provedor. Inclui Responses HTTP/SSE para integrações com Codex e Messages nativo para Claude. Não converte qualquer modelo em substituto equivalente de outro.
 
+## Comece aqui
+
+[**Baixar Windows x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-windows-x64-setup.exe) · [**Mac Apple Silicon**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-macos-arm64.dmg) · [**Linux x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-linux-x64.tar.gz)
+
+[Guia do primeiro uso e ajuda](start-here.md) · [Demonstração interativa sem API](demo.html) · [Exemplos práticos](recipes.md)
+
+Na demonstração, use **Download raw file** no GitHub e abra o HTML no navegador. Os dados são fictícios: nenhum cadastro, chave ou consumo de API. Para usar de verdade, instale o aplicativo, crie seu acesso local, adicione sua chave e aprove uma rota. Simule antes de autorizar uma geração paga. O software é gratuito; o consumo do provedor é cobrado à parte.
+
 ## O que você ganha
 
 - **Menos chamadas desnecessárias:** pedidos identificados não são reenviados automaticamente após uma falha incerta. Cache exato pode reaproveitar respostas elegíveis, quando você autoriza.

@@ -1,0 +1,14 @@
+name: Use case / Sugestão
+description: Tell us which task you want to complete.
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: What are you trying to do? / O que quer fazer?
+      description: Use fictional examples. Do not include secrets or customer data.
+    validations:
+      required: true
+  - type: textarea
+    id: obstacle
+    attributes:
+      label: What gets in the way today? / O que impede hoje?

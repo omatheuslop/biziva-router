@@ -1,4 +1,4 @@
-# Biziva Router — Your AI keys. One gateway. Less waste.
+# Biziva Router — One local dashboard for your AI keys
 
 ![Biziva Router: your keys, one gateway, less waste](assets/hero.svg)
 
@@ -6,9 +6,27 @@
 [![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-74e7c2)](https://nodejs.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-74e7c2)](LICENSE)
 
-**An open-source AI gateway for developers who want control over their keys, models and spend.** Bring your own Biziva, OpenAI, Anthropic, Gemini or OpenRouter API keys. Connect Codex and Claude workflows, generate images/audio/video, and reduce avoidable calls with explicit controls.
+**Chat with your own AI providers, choose approved models by task, and track calls and costs — from a local desktop dashboard.** Free, open-source software. Bring your own Biziva, OpenAI, Anthropic, Gemini or OpenRouter API key; provider usage is billed separately.
 
-[Get started](#run-locally) · [Leia em português 🇧🇷](docs/README.pt-BR.md) · [Codex & Claude setup](docs/developers.md) · [Download releases](https://github.com/omatheuslop/biziva-router/releases) · [Report a bug](https://github.com/omatheuslop/biziva-router/issues/new)
+### Download and try
+
+[**Windows x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-windows-x64-setup.exe) · [**Mac Apple Silicon**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-macos-arm64.dmg) · [**Linux x64**](https://github.com/omatheuslop/biziva-router/releases/download/v0.3.1/BizivaRouter-linux-x64.tar.gz)
+
+[Release notes & checksums](https://github.com/omatheuslop/biziva-router/releases/tag/v0.3.1) · [First-use guide](docs/start-here.md) · [Português 🇧🇷](docs/README.pt-BR.md) · [Codex & Claude setup](docs/developers.md)
+
+**See the journey before adding a key:** [open the interactive demo file](docs/demo.html), download it with GitHub’s **Download raw file** button and open it in your browser. It uses fictional data, works offline and makes no API calls. It is a walkthrough, not the live product.
+
+1. **Open:** install the package for your system and create your local account.
+2. **Connect:** add your own API key and approve a model/price for your task.
+3. **Try:** write a request, preview without calling the provider, then explicitly confirm a paid generation.
+
+Desktop packages are a **public preview**. Windows is not publisher-signed; macOS is not Apple-notarized. No Mac Intel package is available. [Installation help and limitations](docs/start-here.md).
+
+### Is this for you?
+
+- **Writers and small teams:** one place for chat, summaries, writing and planning with your existing API accounts.
+- **Developers:** native OpenAI/Anthropic/Gemini protocols, gateway tokens, idempotency and opt-in cache. [Integration recipes](docs/developers.md).
+- **Cost-conscious builders:** compare approved routes and avoid eligible duplicate calls. [Three practical recipes](docs/recipes.md).
 
 Created and maintained by [Matheus Lopes](https://github.com/omatheuslop) at [Biziva](https://biziva.com.br). Free, Apache-2.0 software. Self-hosted, with **zero runtime npm dependencies**.
 
