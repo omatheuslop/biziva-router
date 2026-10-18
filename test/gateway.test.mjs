@@ -12,5 +12,25 @@ test('Claude native headers and SSE preserve bytes',async()=>{const wire='event:
 for(const path of ['/v1/images/generations','/v1/audio/speech','/v1/embeddings','/v1/videos'])test('native multimodal '+path,async()=>{let seen;const f=fixture(async(url,o)=>{seen={url,body:JSON.parse(o.body)};return new Response(new Uint8Array([0,255,1]),{headers:{'content-type':'application/octet-stream'}})});try{const body={model:'native-media',prompt:'fixture',input:'fixture'};const r=await f.handle(req(f.a,path,body,{'x-biziva-cache':'exact'}));assert.deepEqual(Buffer.from(await r.arrayBuffer()),Buffer.from([0,255,1]));assert.deepEqual(seen.body,body);assert.equal(seen.url,'https://api.openai.com'+path)}finally{f.store.close()}});
 test('Gemini key and native URL are fixed; arbitrary upstream query refused',async()=>{let seen;const f=fixture(async(url,o)=>{seen={url,headers:o.headers};return answer()});try{assert.equal((await f.handle(req(f.a,'/v1beta/models/gemini-exact:streamGenerateContent?alt=sse',{contents:[]}))).status,200);assert.match(seen.url,/^https:\/\/generativelanguage.googleapis.com\//);assert.equal(seen.headers.get('x-goog-api-key'),'synthetic-provider-key-a');assert.equal((await f.handle(req(f.a,'/v1/responses?url=http://127.0.0.1',{}))).status,400)}finally{f.store.close()}});
 test('authentication, CSRF, and provider-key non-disclosure',async()=>{const f=fixture(async()=>answer());try{assert.equal((await f.handle(req('bad'))).status,401);assert.equal((await f.handle(req(f.a,undefined,undefined,{origin:'https://evil.invalid'}))).status,403);assert.doesNotMatch(await(await f.handle(req(f.a,'/router/providers',null,{},'GET'))).text(),/synthetic-provider-key/)}finally{f.store.close()}});
+test('empty provider DELETE is successful and replayed without a second dispatch',async()=>{
+ let calls=0;const f=fixture(async()=>{calls++;return new Response(null,{status:204,headers:{'content-type':'application/json'}})});
+ try{
+  f.store.remember('a','openai','file_fixture');
+  const request=()=>req(f.a,'/v1/files/file_fixture',null,{'idempotency-key':'delete-file'},'DELETE');
+  const first=await f.handle(request());assert.equal(first.status,204);assert.equal(await first.text(),'');
+  const replay=await f.handle(request());assert.equal(replay.status,204);assert.equal(replay.headers.get('x-biziva-replay'),'1');
+  assert.equal(calls,1);assert.equal(f.store.metrics('a').uncertain,0);
+  assert.equal((await f.handle(req(f.b,'/v1/files/file_fixture',null,{},'DELETE'))).status,404);
+ }finally{f.store.close()}
+});
+test('future forwarded Claude headers distinguish idempotent requests',async()=>{
+ let calls=0;const f=fixture(async()=>{calls++;return answer()});
+ try{
+  const request=feature=>req(f.a,'/v1/messages',{model:'claude-exact',messages:[{role:'user',content:'Hello'}]},{'idempotency-key':'claude-feature','anthropic-future-feature':feature});
+  assert.equal((await f.handle(request('one'))).status,200);
+  assert.equal((await f.handle(request('one'))).headers.get('x-biziva-replay'),'1');
+  const conflict=await f.handle(request('two'));assert.equal(conflict.status,409);assert.equal((await conflict.json()).error.code,'idempotency_conflict');assert.equal(calls,1);
+ }finally{f.store.close()}
+});
 test('encrypted vault, cross-owner AAD and restart uncertainty',()=>{const dir=mkdtempSync(join(tmpdir(),'bzr-')),path=join(dir,'test.db');try{let s=new Store(path,master);s.createClient('a');s.putKey('a','openai','synthetic-sensitive-value');s.claim('a','pending','fp');s.close();assert.equal(readFileSync(path).includes(Buffer.from('synthetic-sensitive-value')),false);s=new Store(path,master);assert.equal(s.getKey('a','openai'),'synthetic-sensitive-value');assert.equal(s.claim('a','pending','fp').state,'uncertain');assert.throws(()=>s.open('b','openai',s.db.prepare('SELECT cipher FROM vault').get().cipher));s.close()}finally{rmSync(dir,{recursive:true,force:true})}});
 test('admission is acquired before buffering a slow body and released after replay',async()=>{const store=new Store(':memory:',master),token=store.createClient('slow');store.putKey('slow','openai','synthetic-provider-slow');let controller;const stream=new ReadableStream({start(c){controller=c}}),handle=makeGateway({store,adminToken:admin,maxConcurrent:1,send:async()=>answer()});try{const slow=handle(new Request('http://localhost/v1/chat/completions',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:stream,duplex:'half'}));const denied=await handle(req(token));assert.equal(denied.status,429);controller.enqueue(new TextEncoder().encode(JSON.stringify({model:'exact',messages:[{role:'user',content:'hi'}]})));controller.close();assert.equal((await slow).status,200);assert.equal((await handle(req(token))).status,200)}finally{store.close()}});
