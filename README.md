@@ -1,6 +1,6 @@
 # Biziva Router — One local dashboard for your AI keys
 
-![Biziva Router: your keys, one gateway, less waste](assets/hero.svg)
+![Biziva Router — suas chaves, mais controle](BIZIVA-hero.svg)
 
 [![Router checks](https://github.com/omatheuslop/biziva-router/actions/workflows/test.yml/badge.svg)](https://github.com/omatheuslop/biziva-router/actions/workflows/test.yml)
 [![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-74e7c2)](https://nodejs.org/)
