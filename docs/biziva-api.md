@@ -24,7 +24,7 @@ A hosted cache hit reports `biziva.optimization.cacheHit:true`, zero newly consu
 
 For auxiliary documents, `biziva_optimization.context` accepts `{query,items:[{id,text,required?}],maxBytes}`. This is explicit lossy selection over optional documents only. Required documents must fit; system/developer instructions and original turns remain intact. The selected documents are added as untrusted user data. Do not use this with tools/session state or mark critical instructions optional.
 
-The existing automatic route continues to use qualified models. Exact models stay exact; lower prices do not grant quality approval. No image reference/resolution, voice or video quality setting is reduced by this integration. Media technical retries continue to use the existing idempotency/request recovery contracts; intentional new generations remain new.
+The existing automatic route continues to use qualified models. Exact `biziva-model-*` profile IDs stay exact; third-party model names may normalize to an automatic route and do not preserve the original model. Lower prices do not grant quality approval. No image reference/resolution, voice or video quality setting is reduced by this integration. Media technical retries continue to use the existing idempotency/request recovery contracts; intentional new generations remain new.
 
 A failed/uncertain operation is never silently redispatched under the same key, even after its receipt becomes old. Reconcile the original outcome. A new intentional execution requires a new operation identifier. This reduces duplicate spend; it is not a universal token discount or a promise of identical output between different models.
 
@@ -51,3 +51,15 @@ A 202 response accepts the job; it does not mean the file is ready. Keep its `id
 In the dashboard, approve a Biziva video route using the model and current price from your own account. Select Video, enter the parameters above, preview and explicitly confirm paid creation. Use **Consultar andamento** and **Baixar vídeo** afterward. No background creation/retry occurs; a new intentional generation requires a new preview. After reloading, saved job ownership remains in the local database and the same ID can be queried through the API.
 
 Original contract: 5 seconds, 720p and required audio. Availability, tariffs and file retention depend on the current Biziva contract. This Router update was tested with synthetic providers, without spending customer credits.
+
+## Public prices, comparisons and integration
+
+Hosted Biziva API information is available without login:
+
+- [Current public prices](https://api.biziva.com.br/precos) and [machine-readable pricing](https://api.biziva.com.br/public/pricing.json): BRL, units, billing exchange rate, validity and contract limits. Automatic multi-step routes have variable costs; a media reservation estimate is not a fixed final price.
+- [Cost comparisons and reproducible methodology](https://api.biziva.com.br/comparativos), including the synthetic corpus and historical paired results. The October 17 internal text benchmark used 12 cases, two rounds and 24 pairs; it measured 72.45% lower recorded inference cost, with both routes passing 24/24 factual/JSON checks. This is scoped historical evidence, not a customer invoice, independent review or universal quality guarantee.
+- [Operational transparency](https://api.biziva.com.br/transparencia): scoped qualification and privacy-protected observations. HTTP acceptance does not prove final delivery, and an unavailable measurement is not 100% uptime.
+- [Python, JavaScript and cURL migration guide](https://api.biziva.com.br/integrar) with idempotency and no uncertain automatic retries. Production examples incur charges only when the developer executes them; opening these pages starts no generation.
+
+Compare the same task and include attempts, provider fees, taxes and applicable currency conversion. Published comparisons show when the same model costs more through Biziva. We do not claim to be universally cheaper than OpenAI or OpenRouter, or endorsed by ChatGPT. This repository is maintained by Biziva and is not an independent review.
+
