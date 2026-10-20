@@ -20,7 +20,7 @@ Equivalent headers are `X-Biziva-Cache: exact` and `X-Biziva-Deduplicate-Instruc
 
 Eligible exact cache is private to the account/key/full request/current route, lasts5minutes and stores at most100entries/account,128KiB/entry. Tool/state/multimodal/streaming requests and experimental/economic commercial profiles bypass it. The legacy translated `/v1/messages` endpoint also bypasses this response cache; the standalone gateway exposes native Anthropic for Claude integrations.
 
-A hosted cache hit reports `biziva.optimization.cacheHit:true`, zero newly consumed tokens and zero execution charge in the existing billing receipt. Historical usage may appear as `reusedUsage`; it is not newly consumed. Existing authorization, reservation/ledger controls and approved model margins remain in force. Cache availability does not waive authentication or the existing balance/reservation checks.
+A hosted cache hit reports `biziva.optimization.cacheHit:true`, zero newly consumed tokens and zero execution charge in the existing billing receipt. Historical usage may appear as `reusedUsage`; it is not newly consumed. Existing authorization, reservation/ledger controls and published customer prices remain in force. Cache availability does not waive authentication or the existing balance/reservation checks.
 
 For auxiliary documents, `biziva_optimization.context` accepts `{query,items:[{id,text,required?}],maxBytes}`. This is explicit lossy selection over optional documents only. Required documents must fit; system/developer instructions and original turns remain intact. The selected documents are added as untrusted user data. Do not use this with tools/session state or mark critical instructions optional.
 
@@ -56,10 +56,11 @@ Original contract: 5 seconds, 720p and required audio. Availability, tariffs and
 
 Hosted Biziva API information is available without login:
 
-- [Current public prices](https://api.biziva.com.br/precos) and [machine-readable pricing](https://api.biziva.com.br/public/pricing.json): BRL, units, billing exchange rate, validity and contract limits. Automatic multi-step routes have variable costs; a media reservation estimate is not a fixed final price.
-- [Cost comparisons and reproducible methodology](https://api.biziva.com.br/comparativos), including the synthetic corpus and historical paired results. The October 17 internal text benchmark used 12 cases, two rounds and 24 pairs; it measured 72.45% lower recorded inference cost, with both routes passing 24/24 factual/JSON checks. This is scoped historical evidence, not a customer invoice, independent review or universal quality guarantee.
+- [Current public prices](https://api.biziva.com.br/precos) and [machine-readable pricing](https://api.biziva.com.br/public/pricing.json): BRL, units, validity and contract limits. Automatic multi-step routes have variable costs; a media reservation estimate is not a fixed final price.
+- [Customer price estimates](https://api.biziva.com.br/comparativos): compare Biziva profiles for the same token budget using customer selling prices. Estimates are not executed generations or a guarantee of equivalent quality.
 - [Operational transparency](https://api.biziva.com.br/transparencia): scoped qualification and privacy-protected observations. HTTP acceptance does not prove final delivery, and an unavailable measurement is not 100% uptime.
 - [Python, JavaScript and cURL migration guide](https://api.biziva.com.br/integrar) with idempotency and no uncertain automatic retries. Production examples incur charges only when the developer executes them; opening these pages starts no generation.
 
-Compare the same task and include attempts, provider fees, taxes and applicable currency conversion. Published comparisons show when the same model costs more through Biziva. We do not claim to be universally cheaper than OpenAI or OpenRouter, or endorsed by ChatGPT. This repository is maintained by Biziva and is not an independent review.
+Compare the same task, contractual units and the final customer charge, including applicable taxes and payment conditions. We do not claim to be universally cheaper than OpenAI or OpenRouter, or endorsed by ChatGPT. This repository is maintained by Biziva and is not an independent review.
+
 
